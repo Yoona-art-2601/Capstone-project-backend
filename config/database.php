@@ -5,7 +5,7 @@ header("Content-Type: application/json; charset=UTF-8");
 $host = "localhost";
 $dbname = "beaconmart_db";
 $username = "root";
-$password = "";  // XAMPP normally has an empty password for the root user.
+$password = "";  
 
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
