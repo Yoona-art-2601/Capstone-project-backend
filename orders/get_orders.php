@@ -8,7 +8,7 @@ $branch_filter = $branch_id ? "WHERE o.branch_id = :branch_id" : "";
 try {
     $stmt = $conn->prepare("
         SELECT
-            o.order_id, o.customer_name, o.customer_phone, o.order_date,
+            o.order_id, o.customer_name, o.customer_phone, o.customer_address, o.order_date,
             o.status, o.payment_status, o.total_amount,
             o.branch_id, b.branch_name
         FROM orders o

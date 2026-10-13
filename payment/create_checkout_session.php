@@ -5,8 +5,17 @@ require_once '../config/stripe.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-if (!isset($data['branch_id']) || !isset($data['customer_name']) || !isset($data['items']) || count($data['items']) === 0) {
-    echo json_encode(["success" => false, "message" => "Missing branch_id, customer_name or items"]);
+if (!isset($data['branch_id']) || !isset($data['items']) || !is_array($data['items']) || count($data['items']) === 0) {
+    echo json_encode(["success" => false, "message" => "Missing branch_id or items"]);
+    exit;
+}
+
+$customer_name = trim($data['customer_name'] ?? '');
+$customer_phone = trim($data['customer_phone'] ?? '');
+$customer_address = trim($data['customer_address'] ?? '');
+
+if ($customer_name === '' || $customer_phone === '' || $customer_address === '') {
+    echo json_encode(["success" => false, "message" => "Name, phone number and address are required"]);
     exit;
 }
 
@@ -58,12 +67,13 @@ try {
     }
 
     // ② create order in orders table
-    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, status, total_amount, branch_id, payment_status)
-                             VALUES (:uid, :name, :phone, 'Awaiting Payment', :total, :bid, 'Unpaid')");
+    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, customer_address, status, total_amount, branch_id, payment_status)
+                             VALUES (:uid, :name, :phone, :address, 'Awaiting Payment', :total, :bid, 'Unpaid')");
     $stmt->execute([
         ':uid' => $_SESSION['user_id'] ?? null,
-        ':name' => $data['customer_name'],
-        ':phone' => $data['customer_phone'] ?? null,
+        ':name' => $customer_name,
+        ':phone' => $customer_phone,
+        ':address' => $customer_address,
         ':total' => $total,
         ':bid' => $branch_id
     ]);
