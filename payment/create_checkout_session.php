@@ -1,4 +1,5 @@
 <?php
+session_start();
 require_once '../config/database.php';
 require_once '../config/stripe.php';
 
@@ -57,9 +58,10 @@ try {
     }
 
     // ② create order in orders table
-    $stmt = $conn->prepare("INSERT INTO orders (customer_name, customer_phone, status, total_amount, branch_id, payment_status)
-                             VALUES (:name, :phone, 'Awaiting Payment', :total, :bid, 'Unpaid')");
+    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, status, total_amount, branch_id, payment_status)
+                             VALUES (:uid, :name, :phone, 'Awaiting Payment', :total, :bid, 'Unpaid')");
     $stmt->execute([
+        ':uid' => $_SESSION['user_id'] ?? null,
         ':name' => $data['customer_name'],
         ':phone' => $data['customer_phone'] ?? null,
         ':total' => $total,
