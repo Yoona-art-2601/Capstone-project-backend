@@ -1,5 +1,11 @@
 <?php
-header("Access-Control-Allow-Origin: *");
+// Only the React dev server may call the API with cookies (needed for login sessions)
+$allowed_origins = ["http://localhost:3000", "http://127.0.0.1:3000"];
+if (isset($_SERVER['HTTP_ORIGIN']) && in_array($_SERVER['HTTP_ORIGIN'], $allowed_origins)) {
+    header("Access-Control-Allow-Origin: " . $_SERVER['HTTP_ORIGIN']);
+    header("Access-Control-Allow-Credentials: true");
+    header("Vary: Origin");
+}
 header("Access-Control-Allow-Headers: Content-Type");
 header("Access-Control-Allow-Methods: GET, POST, OPTIONS");
 header("Content-Type: application/json; charset=UTF-8");

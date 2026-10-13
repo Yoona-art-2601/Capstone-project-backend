@@ -6,7 +6,7 @@ require_once '../config/database.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
-// check required fields
+
 if (
     !isset($data['email']) ||
     !isset($data['password'])
@@ -72,7 +72,8 @@ try {
         exit;
     }
 
-    // create session
+    // create session (new session id to prevent session fixation)
+    session_regenerate_id(true);
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['name'] = $user['name'];
     $_SESSION['email'] = $user['email'];
