@@ -15,7 +15,7 @@ try {
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
         JOIN orders o ON oi.order_id = o.order_id
-        WHERE o.status != 'Cancelled'
+        WHERE o.payment_status = 'Paid' AND o.status != 'Cancelled'
         $branch_filter
         GROUP BY p.product_id, p.name, p.category
         ORDER BY total_sold DESC

@@ -24,7 +24,7 @@ try {
             SELECT p.name, p.price, bs.stock
             FROM products p
             JOIN branch_stock bs ON p.product_id = bs.product_id
-            WHERE p.product_id = :pid AND bs.branch_id = :bid
+            WHERE p.product_id = :pid AND bs.branch_id = :bid AND p.is_active = 1
         ");
         $stmt->execute([':pid' => $item['product_id'], ':bid' => $branch_id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);

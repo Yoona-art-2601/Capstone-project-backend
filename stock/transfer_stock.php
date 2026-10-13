@@ -11,24 +11,26 @@ if (!isset($data['product_id']) || !isset($data['from_branch_id']) || !isset($da
     exit;
 }
 
-$product_id = $data['product_id'];
-$from_branch = $data['from_branch_id'];
-$to_branch = $data['to_branch_id'];
-$quantity = $data['quantity'];
+if (!is_numeric($data['quantity']) || (int)$data['quantity'] <= 0) {
+    echo json_encode(["success" => false, "message" => "Quantity must be a positive whole number"]);
+    exit;
+}
 
-if ($from_branch == $to_branch) {
-    echo json_encode([
-        "success" => false,
-        "message" => "from_branch_id and to_branch_id cannot be the same"
-    ]);
+$product_id = (int)$data['product_id'];
+$from_branch = (int)$data['from_branch_id'];
+$to_branch = (int)$data['to_branch_id'];
+$quantity = (int)$data['quantity'];
+
+if ($from_branch === $to_branch) {
+    echo json_encode(["success" => false, "message" => "Source and destination branch must be different"]);
     exit;
 }
 
 try {
     $conn->beginTransaction();
 
-    // check stock in source branch
-    $stmt = $conn->prepare("SELECT stock FROM branch_stock WHERE product_id = :pid AND branch_id = :bid");
+    
+    $stmt = $conn->prepare("SELECT stock FROM branch_stock WHERE product_id = :pid AND branch_id = :bid FOR UPDATE");
     $stmt->execute([':pid' => $product_id, ':bid' => $from_branch]);
     $source = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -39,16 +41,22 @@ try {
         throw new Exception("Insufficient stock in source branch for transfer");
     }
 
-    // see stock in destination branch
+    // Make sure the destination row exists
+    $stmt = $conn->prepare("SELECT branch_stock_id FROM branch_stock WHERE product_id = :pid AND branch_id = :bid FOR UPDATE");
+    $stmt->execute([':pid' => $product_id, ':bid' => $to_branch]);
+    if (!$stmt->fetch()) {
+        throw new Exception("Product not found in destination branch");
+    }
+
+    
     $stmt = $conn->prepare("UPDATE branch_stock SET stock = stock - :qty WHERE product_id = :pid AND branch_id = :bid");
     $stmt->execute([':qty' => $quantity, ':pid' => $product_id, ':bid' => $from_branch]);
 
-    // check stock in destination branch
     $stmt = $conn->prepare("UPDATE branch_stock SET stock = stock + :qty WHERE product_id = :pid AND branch_id = :bid");
     $stmt->execute([':qty' => $quantity, ':pid' => $product_id, ':bid' => $to_branch]);
 
-    // write stock transfer record to stock_transfers table
-    $stmt = $conn->prepare("INSERT INTO stock_transfers (product_id, from_branch_id, to_branch_id, quantity) 
+    
+    $stmt = $conn->prepare("INSERT INTO stock_transfers (product_id, from_branch_id, to_branch_id, quantity)
                              VALUES (:pid, :from_bid, :to_bid, :qty)");
     $stmt->execute([
         ':pid' => $product_id,
@@ -57,27 +65,23 @@ try {
         ':qty' => $quantity
     ]);
 
-    // ⑤ write stock_logs for both branches
-    $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change) 
+    
+    $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change)
                              VALUES (:pid, :bid, 'Transfer Out', :qty)");
     $stmt->execute([':pid' => $product_id, ':bid' => $from_branch, ':qty' => -$quantity]);
 
-    $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change) 
+    $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change)
                              VALUES (:pid, :bid, 'Transfer In', :qty)");
     $stmt->execute([':pid' => $product_id, ':bid' => $to_branch, ':qty' => $quantity]);
 
     $conn->commit();
 
-    echo json_encode([
-        "success" => true,
-        "message" => "Stock transferred successfully"
-    ]);
+    echo json_encode(["success" => true, "message" => "Stock transferred successfully"]);
 
-} catch(Exception $e) {
-    $conn->rollBack();
-    echo json_encode([
-        "success" => false,
-        "message" => $e->getMessage()
-    ]);
+} catch (Exception $e) {
+    if ($conn->inTransaction()) {
+        $conn->rollBack();
+    }
+    echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }
 ?>

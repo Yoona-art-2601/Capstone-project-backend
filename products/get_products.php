@@ -1,7 +1,7 @@
 <?php
 require_once '../config/database.php';
 
-// 从网址参数拿 branch_id，例如：get_products.php?branch_id=1
+// get the branch_id from the query parameter, default to 1 if not provided
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : 1; // 默认分店1
 
 try {
@@ -16,7 +16,7 @@ try {
             p.created_at
         FROM products p
         JOIN branch_stock bs ON p.product_id = bs.product_id
-        WHERE bs.branch_id = :branch_id
+        WHERE bs.branch_id = :branch_id AND p.is_active = 1
         ORDER BY p.product_id DESC
     ");
     $stmt->execute([':branch_id' => $branch_id]);

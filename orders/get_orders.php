@@ -1,16 +1,24 @@
 <?php
-error_reporting(E_ALL);
-ini_set('display_errors', 1);
-
 require_once '../config/database.php';
 
+$branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
+$branch_filter = $branch_id ? "WHERE o.branch_id = :branch_id" : "";
+
 try {
-    // get all orders record from the orders table, ordered by order_date descending
-    $stmt = $conn->prepare("SELECT * FROM orders ORDER BY order_date DESC");
+    $stmt = $conn->prepare("
+        SELECT
+            o.order_id, o.customer_name, o.customer_phone, o.order_date,
+            o.status, o.payment_status, o.total_amount,
+            o.branch_id, b.branch_name
+        FROM orders o
+        LEFT JOIN branches b ON o.branch_id = b.branch_id
+        $branch_filter
+        ORDER BY o.order_date DESC
+    ");
+    if ($branch_id) $stmt->bindValue(':branch_id', $branch_id);
     $stmt->execute();
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-    // compare each order with its items
     foreach ($orders as &$order) {
         $stmt2 = $conn->prepare("
             SELECT oi.product_id, p.name, oi.quantity, oi.subtotal
@@ -21,9 +29,11 @@ try {
         $stmt2->execute([':oid' => $order['order_id']]);
         $order['items'] = $stmt2->fetchAll(PDO::FETCH_ASSOC);
     }
+    unset($order);
 
     echo json_encode([
         "success" => true,
+        "branch_id" => $branch_id ?? "all",
         "data" => $orders
     ]);
 } catch(PDOException $e) {
