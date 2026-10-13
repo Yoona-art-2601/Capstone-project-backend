@@ -1,4 +1,5 @@
 <?php
+require_once '../auth/check_admin.php';
 require_once '../config/database.php';
 
 $data = json_decode(file_get_contents("php://input"), true);

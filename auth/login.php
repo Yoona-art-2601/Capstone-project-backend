@@ -1,0 +1,101 @@
+<?php
+
+session_start();
+
+require_once '../config/database.php';
+
+$data = json_decode(file_get_contents("php://input"), true);
+
+// check required fields
+if (
+    !isset($data['email']) ||
+    !isset($data['password'])
+) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Missing email or password"
+    ]);
+    exit;
+}
+
+$email = trim($data['email']);
+$password = $data['password'];
+
+// check empty fields
+if ($email === '' || $password === '') {
+    echo json_encode([
+        "success" => false,
+        "message" => "Email and password cannot be empty"
+    ]);
+    exit;
+}
+
+// check email format
+if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+    echo json_encode([
+        "success" => false,
+        "message" => "Invalid email format"
+    ]);
+    exit;
+}
+
+try {
+
+    // find user by email
+    $stmt = $conn->prepare(
+        "SELECT user_id, name, email, password, role
+         FROM users
+         WHERE email = :email"
+    );
+
+    $stmt->execute([
+        ':email' => $email
+    ]);
+
+    $user = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // check user exists
+    if (!$user) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Invalid email or password"
+        ]);
+        exit;
+    }
+
+    // check password
+    if (!password_verify($password, $user['password'])) {
+        echo json_encode([
+            "success" => false,
+            "message" => "Invalid email or password"
+        ]);
+        exit;
+    }
+
+    // create session
+    $_SESSION['user_id'] = $user['user_id'];
+    $_SESSION['name'] = $user['name'];
+    $_SESSION['email'] = $user['email'];
+    $_SESSION['role'] = $user['role'];
+
+    echo json_encode([
+        "success" => true,
+        "message" => "Login successful",
+        "user" => [
+            "user_id" => $user['user_id'],
+            "name" => $user['name'],
+            "email" => $user['email'],
+            "role" => $user['role']
+        ]
+    ]);
+
+} catch (Exception $e) {
+
+    // show error message
+    echo json_encode([
+        "success" => false,
+        "message" => $e->getMessage()
+    ]);
+}
+
+?>
