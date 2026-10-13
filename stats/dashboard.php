@@ -1,5 +1,6 @@
 <?php
 require_once '../config/database.php';
+require_once '../auth/check_admin.php';
 
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
 $days = isset($_GET['days']) ? (int)$_GET['days'] : 7;

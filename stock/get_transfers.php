@@ -1,5 +1,6 @@
 <?php
 require_once '../config/database.php';
+require_once '../auth/check_admin.php';
 
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
 $filter = $branch_id ? "WHERE t.from_branch_id = :bid1 OR t.to_branch_id = :bid2" : "";
