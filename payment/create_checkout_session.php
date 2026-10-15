@@ -2,6 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../config/stripe.php';
+require_once '../config/shop.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -66,15 +67,29 @@ try {
         ];
     }
 
+    $delivery_fee = delivery_fee_for($total);
+    if ($delivery_fee > 0) {
+        $line_items[] = [
+            'price_data' => [
+                'currency' => 'myr',
+                'product_data' => ['name' => 'Delivery fee (free for orders RM' . number_format(FREE_DELIVERY_THRESHOLD, 0) . ' and above)'],
+                'unit_amount' => (int) round($delivery_fee * 100),
+            ],
+            'quantity' => 1,
+        ];
+    }
+    $total += $delivery_fee;
+
     // ② create order in orders table
-    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, customer_address, status, total_amount, branch_id, payment_status)
-                             VALUES (:uid, :name, :phone, :address, 'Awaiting Payment', :total, :bid, 'Unpaid')");
+    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, customer_address, status, total_amount, delivery_fee, branch_id, payment_status)
+                             VALUES (:uid, :name, :phone, :address, 'Awaiting Payment', :total, :fee, :bid, 'Unpaid')");
     $stmt->execute([
         ':uid' => $_SESSION['user_id'] ?? null,
         ':name' => $customer_name,
         ':phone' => $customer_phone,
         ':address' => $customer_address,
         ':total' => $total,
+        ':fee' => $delivery_fee,
         ':bid' => $branch_id
     ]);
     $order_id = $conn->lastInsertId();
@@ -117,6 +132,7 @@ try {
         "success" => true,
         "order_id" => $order_id,
         "total_amount" => $total,
+        "delivery_fee" => $delivery_fee,
         "checkout_url" => $session['url']
     ]);
 

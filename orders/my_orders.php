@@ -15,7 +15,7 @@ try {
     $stmt = $conn->prepare("
         SELECT
             o.order_id, o.customer_name, o.customer_phone, o.customer_address, o.order_date,
-            o.status, o.payment_status, o.total_amount, b.branch_name
+            o.status, o.payment_status, o.total_amount, o.delivery_fee, b.branch_name
         FROM orders o
         LEFT JOIN branches b ON o.branch_id = b.branch_id
         WHERE o.user_id = :uid
