@@ -25,7 +25,7 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt2 = $conn->prepare("
-        SELECT p.name, oi.quantity, oi.subtotal
+        SELECT p.name, p.category, oi.quantity, oi.subtotal
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
         WHERE oi.order_id = :oid
