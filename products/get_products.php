@@ -12,11 +12,21 @@ try {
             p.category,
             p.price,
             p.sale_price,
+            p.image_url,
+            p.description,
             bs.stock,
             bs.low_stock_threshold,
-            p.created_at
+            p.created_at,
+            COALESCE(sold.qty, 0) AS sold
         FROM products p
         JOIN branch_stock bs ON p.product_id = bs.product_id
+        LEFT JOIN (
+            SELECT oi.product_id, SUM(oi.quantity) AS qty
+            FROM order_items oi
+            JOIN orders o ON oi.order_id = o.order_id
+            WHERE o.payment_status = 'Paid' AND o.status != 'Cancelled'
+            GROUP BY oi.product_id
+        ) sold ON sold.product_id = p.product_id
         WHERE bs.branch_id = :branch_id AND p.is_active = 1
         ORDER BY p.product_id DESC
     ");

@@ -16,7 +16,7 @@ if (!is_numeric($data['price']) || $data['price'] < 0) {
 }
 
 try {
-    $stmt = $conn->prepare("SELECT name, category, price, sale_price FROM products WHERE product_id = :pid AND is_active = 1");
+    $stmt = $conn->prepare("SELECT name, category, price, sale_price, description FROM products WHERE product_id = :pid AND is_active = 1");
     $stmt->execute([':pid' => $data['product_id']]);
     $old = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$old) {
@@ -39,12 +39,19 @@ try {
         }
     }
 
-    $stmt = $conn->prepare("UPDATE products SET name = :name, category = :category, price = :price, sale_price = :sale WHERE product_id = :pid");
+    $description = $old['description'];
+    if (array_key_exists('description', $data)) {
+        $description = trim((string)$data['description']);
+        if ($description === '') $description = null;
+    }
+
+    $stmt = $conn->prepare("UPDATE products SET name = :name, category = :category, price = :price, sale_price = :sale, description = :descr WHERE product_id = :pid");
     $stmt->execute([
         ':name' => $data['name'],
         ':category' => $data['category'] ?? null,
         ':price' => $data['price'],
         ':sale' => $sale_price,
+        ':descr' => $description,
         ':pid' => $data['product_id']
     ]);
 
@@ -56,6 +63,7 @@ try {
     if ($old['sale_price'] === null ? $sale_price !== null : ($sale_price === null || (float)$old['sale_price'] !== (float)$sale_price)) {
         $changes[] = "sale price: " . $fmt($old['sale_price']) . " -> " . $fmt($sale_price);
     }
+    if (($old['description'] ?? '') !== ($description ?? '')) $changes[] = "description updated";
     audit_log($conn, 'PRODUCT_UPDATE', 'product', $data['product_id'],
         "Updated {$old['name']}: " . ($changes ? implode('; ', $changes) : 'no changes'));
 

@@ -2,3 +2,5 @@
 config/stripe.php
 .claude/
 config/admin.php
+uploads/products/*
+!uploads/products/.gitkeep
