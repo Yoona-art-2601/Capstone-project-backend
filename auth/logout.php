@@ -3,7 +3,12 @@
 session_start();
 
 require_once '../config/database.php';
+require_once '../config/audit.php';
 
+
+if (isset($_SESSION['user_id'])) {
+    audit_log($conn, 'LOGOUT', 'user', $_SESSION['user_id'], "{$_SESSION['role']} logged out");
+}
 
 $_SESSION = [];
 

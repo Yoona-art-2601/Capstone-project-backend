@@ -3,6 +3,7 @@
 session_start();
 
 require_once '../config/database.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -56,6 +57,8 @@ try {
 
   
     if (!$user) {
+        audit_log($conn, 'LOGIN_FAILED', 'user', null, "Unknown email: $email",
+            ['user_id' => null, 'name' => $email, 'role' => null]);
         echo json_encode([
             "success" => false,
             "message" => "Invalid email or password"
@@ -65,6 +68,7 @@ try {
 
   
     if (!password_verify($password, $user['password'])) {
+        audit_log($conn, 'LOGIN_FAILED', 'user', $user['user_id'], "Wrong password for $email", $user);
         echo json_encode([
             "success" => false,
             "message" => "Invalid email or password"
@@ -78,6 +82,8 @@ try {
     $_SESSION['name'] = $user['name'];
     $_SESSION['email'] = $user['email'];
     $_SESSION['role'] = $user['role'];
+
+    audit_log($conn, 'LOGIN', 'user', $user['user_id'], "{$user['role']} logged in");
 
     echo json_encode([
         "success" => true,

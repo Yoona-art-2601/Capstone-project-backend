@@ -1,2 +1,3 @@
 # Contains the Stripe secret key - copy config/stripe.example.php to config/stripe.php and fill in your own key
 config/stripe.php
+.claude/

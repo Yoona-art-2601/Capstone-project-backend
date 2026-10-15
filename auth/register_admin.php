@@ -1,6 +1,7 @@
 <?php
 
 require_once '../config/database.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -99,6 +100,10 @@ try {
         ':email' => $email,
         ':password' => $hashed_password
     ]);
+
+    $new_id = $conn->lastInsertId();
+    audit_log($conn, 'REGISTER_ADMIN', 'user', $new_id, "New admin account: $name ($email)",
+        ['user_id' => $new_id, 'name' => $name, 'role' => 'Admin']);
 
     echo json_encode([
         "success" => true,

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -60,6 +61,11 @@ try {
 
         $stmt = $conn->prepare("UPDATE orders SET status = :status WHERE order_id = :oid");
         $stmt->execute([':status' => $data['status'], ':oid' => $data['order_id']]);
+
+        $returned = ($data['status'] === 'Cancelled' && $order['payment_status'] === 'Paid' && $order['branch_id'] !== null)
+            ? ' (stock returned to branch)' : '';
+        audit_log($conn, 'ORDER_STATUS', 'order', $data['order_id'],
+            "Order #{$data['order_id']}: {$order['status']} -> {$data['status']}$returned");
     }
 
     $conn->commit();

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -43,6 +44,9 @@ try {
             ':threshold' => $threshold
         ]);
     }
+
+    audit_log($conn, 'PRODUCT_ADD', 'product', $product_id,
+        "Added product {$data['name']} (RM " . number_format($data['price'], 2) . "), initial stock $initial_stock per branch");
 
     $conn->commit();
 

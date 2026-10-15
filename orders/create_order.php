@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -93,6 +94,10 @@ try {
             ':qty' => -$item['quantity']
         ]);
     }
+
+    audit_log($conn, 'ORDER_CREATE', 'order', $order_id,
+        "Created order #$order_id for {$data['customer_name']} at " . branch_name($conn, $branch_id)
+        . " (RM " . number_format($total_amount, 2) . ")");
 
     $conn->commit();
 

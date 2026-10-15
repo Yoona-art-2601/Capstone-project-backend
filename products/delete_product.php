@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -19,6 +20,9 @@ try {
 
     $stmt = $conn->prepare("UPDATE products SET is_active = 0 WHERE product_id = :pid");
     $stmt->execute([':pid' => $data['product_id']]);
+
+    audit_log($conn, 'PRODUCT_DELETE', 'product', $data['product_id'],
+        "Removed product " . product_name($conn, $data['product_id']) . " from store");
 
     echo json_encode(["success" => true, "message" => "Product removed from store"]);
 } catch(PDOException $e) {

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -15,9 +16,10 @@ if (!is_numeric($data['price']) || $data['price'] < 0) {
 }
 
 try {
-    $stmt = $conn->prepare("SELECT product_id FROM products WHERE product_id = :pid AND is_active = 1");
+    $stmt = $conn->prepare("SELECT name, category, price FROM products WHERE product_id = :pid AND is_active = 1");
     $stmt->execute([':pid' => $data['product_id']]);
-    if (!$stmt->fetch()) {
+    $old = $stmt->fetch(PDO::FETCH_ASSOC);
+    if (!$old) {
         echo json_encode(["success" => false, "message" => "Product not found"]);
         exit;
     }
@@ -29,6 +31,13 @@ try {
         ':price' => $data['price'],
         ':pid' => $data['product_id']
     ]);
+
+    $changes = [];
+    if ($old['name'] !== $data['name']) $changes[] = "name: {$old['name']} -> {$data['name']}";
+    if (($old['category'] ?? '') !== ($data['category'] ?? '')) $changes[] = "category: {$old['category']} -> " . ($data['category'] ?? '');
+    if ((float)$old['price'] !== (float)$data['price']) $changes[] = "price: RM {$old['price']} -> RM " . number_format($data['price'], 2);
+    audit_log($conn, 'PRODUCT_UPDATE', 'product', $data['product_id'],
+        "Updated {$old['name']}: " . ($changes ? implode('; ', $changes) : 'no changes'));
 
     echo json_encode(["success" => true, "message" => "Product updated successfully"]);
 } catch(PDOException $e) {

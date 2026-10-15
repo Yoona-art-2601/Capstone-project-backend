@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -45,6 +46,13 @@ try {
         ':type' => $data['change_type'],
         ':qty' => $qty
     ]);
+
+    $stmt3 = $conn->prepare("SELECT stock FROM branch_stock WHERE branch_id = :bid AND product_id = :pid");
+    $stmt3->execute([':bid' => $data['branch_id'], ':pid' => $data['product_id']]);
+    $new_stock = (int)$stmt3->fetchColumn();
+    audit_log($conn, 'STOCK_UPDATE', 'product', $data['product_id'],
+        "{$data['change_type']} " . ($qty > 0 ? "+$qty" : $qty) . " for " . product_name($conn, $data['product_id'])
+        . " at " . branch_name($conn, $data['branch_id']) . " (" . ($new_stock - $qty) . " -> $new_stock)");
 
     $conn->commit();
 

@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -74,6 +75,10 @@ try {
     $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change)
                              VALUES (:pid, :bid, 'Transfer In', :qty)");
     $stmt->execute([':pid' => $product_id, ':bid' => $to_branch, ':qty' => $quantity]);
+
+    audit_log($conn, 'STOCK_TRANSFER', 'product', $product_id,
+        "Transferred $quantity x " . product_name($conn, $product_id) . " from " . branch_name($conn, $from_branch)
+        . " to " . branch_name($conn, $to_branch));
 
     $conn->commit();
 

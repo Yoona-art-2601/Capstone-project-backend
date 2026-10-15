@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/audit.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -15,9 +16,10 @@ if (!is_numeric($data['low_stock_threshold']) || $data['low_stock_threshold'] < 
 }
 
 try {
-    $stmt = $conn->prepare("SELECT branch_stock_id FROM branch_stock WHERE branch_id = :bid AND product_id = :pid");
+    $stmt = $conn->prepare("SELECT low_stock_threshold FROM branch_stock WHERE branch_id = :bid AND product_id = :pid");
     $stmt->execute([':bid' => $data['branch_id'], ':pid' => $data['product_id']]);
-    if (!$stmt->fetch()) {
+    $old_threshold = $stmt->fetchColumn();
+    if ($old_threshold === false) {
         echo json_encode(["success" => false, "message" => "Product not found in this branch"]);
         exit;
     }
@@ -28,6 +30,10 @@ try {
         ':bid' => $data['branch_id'],
         ':pid' => $data['product_id']
     ]);
+
+    audit_log($conn, 'THRESHOLD_UPDATE', 'product', $data['product_id'],
+        "Low-stock threshold for " . product_name($conn, $data['product_id']) . " at " . branch_name($conn, $data['branch_id'])
+        . ": $old_threshold -> " . (int)$data['low_stock_threshold']);
 
     echo json_encode(["success" => true, "message" => "Threshold updated successfully"]);
 } catch(PDOException $e) {
