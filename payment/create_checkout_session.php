@@ -20,6 +20,12 @@ if ($customer_name === '' || $customer_phone === '' || $customer_address === '')
     exit;
 }
 
+$phone_digits = preg_replace('/\D/', '', $customer_phone);
+if (!preg_match('/^\+?[0-9\s-]+$/', $customer_phone) || strlen($phone_digits) < 9 || strlen($phone_digits) > 13) {
+    echo json_encode(["success" => false, "message" => "Please enter a valid phone number, for example 012-345 6789"]);
+    exit;
+}
+
 $branch_id = $data['branch_id'];
 
 try {
