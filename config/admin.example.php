@@ -1,0 +1,3 @@
+<?php
+define('ADMIN_REGISTER_CODE', 'CHANGE_ME_TO_A_SECRET_CODE');
+?>

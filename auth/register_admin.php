@@ -2,6 +2,7 @@
 
 require_once '../config/database.php';
 require_once '../config/audit.php';
+require_once '../config/admin.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -39,9 +40,7 @@ if (
 }
 
 // check admin registration code
-$correct_admin_code = "bm@admin26";
-
-if ($admin_code !== $correct_admin_code) {
+if (!hash_equals(ADMIN_REGISTER_CODE, $admin_code)) {
     echo json_encode([
         "success" => false,
         "message" => "Invalid admin registration code"
