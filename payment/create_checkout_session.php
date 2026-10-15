@@ -32,7 +32,7 @@ try {
     // check stock for each item in the order
     foreach ($data['items'] as $item) {
         $stmt = $conn->prepare("
-            SELECT p.name, p.price, bs.stock
+            SELECT p.name, p.price, p.sale_price, bs.stock
             FROM products p
             JOIN branch_stock bs ON p.product_id = bs.product_id
             WHERE p.product_id = :pid AND bs.branch_id = :bid AND p.is_active = 1
@@ -47,7 +47,8 @@ try {
             throw new Exception("Insufficient stock for {$product['name']}");
         }
 
-        $subtotal = $product['price'] * $item['quantity'];
+        $unit_price = effective_price($product['price'], $product['sale_price']);
+        $subtotal = $unit_price * $item['quantity'];
         $total += $subtotal;
 
         $order_lines[] = [
@@ -61,7 +62,7 @@ try {
             'price_data' => [
                 'currency' => 'myr',
                 'product_data' => ['name' => $product['name']],
-                'unit_amount' => (int) round($product['price'] * 100),
+                'unit_amount' => (int) round($unit_price * 100),
             ],
             'quantity' => $item['quantity'],
         ];

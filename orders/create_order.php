@@ -2,6 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
+require_once '../config/shop.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -41,9 +42,10 @@ try {
     // calculate total amount
     $total_amount = 0;
     foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT price FROM products WHERE product_id = :pid");
+        $stmt = $conn->prepare("SELECT price, sale_price FROM products WHERE product_id = :pid");
         $stmt->execute([':pid' => $item['product_id']]);
-        $price = $stmt->fetch(PDO::FETCH_ASSOC)['price'];
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $price = effective_price($row['price'], $row['sale_price']);
         $total_amount += $price * $item['quantity'];
     }
 
@@ -60,9 +62,10 @@ try {
 
     // write order_items, update branch_stock, and write stock_logs
     foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT price FROM products WHERE product_id = :pid");
+        $stmt = $conn->prepare("SELECT price, sale_price FROM products WHERE product_id = :pid");
         $stmt->execute([':pid' => $item['product_id']]);
-        $price = $stmt->fetch(PDO::FETCH_ASSOC)['price'];
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $price = effective_price($row['price'], $row['sale_price']);
         $subtotal = $price * $item['quantity'];
 
         // write order_items

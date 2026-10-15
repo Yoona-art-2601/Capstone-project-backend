@@ -11,6 +11,7 @@ try {
             p.name,
             p.category,
             p.price,
+            p.sale_price,
             bs.stock,
             bs.low_stock_threshold,
             p.created_at
