@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../config/stripe.php';
+require_once '../config/order_flow.php';
 
 $session_id = $_GET['session_id'] ?? null;
 
@@ -70,6 +71,7 @@ try {
     
     $stmt = $conn->prepare("UPDATE orders SET payment_status = 'Paid', status = 'Pending', stock_deducted = 1 WHERE order_id = :oid");
     $stmt->execute([':oid' => $order['order_id']]);
+    record_status($conn, $order['order_id'], 'Pending', 'Online payment received', 'Stripe');
 
     $conn->commit();
 

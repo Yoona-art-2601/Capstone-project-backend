@@ -1,6 +1,7 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
+require_once '../config/order_flow.php';
 
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
 $branch_filter = $branch_id ? "WHERE o.branch_id = :branch_id" : "";
@@ -31,6 +32,7 @@ try {
         $order['items'] = $stmt2->fetchAll(PDO::FETCH_ASSOC);
     }
     unset($order);
+    attach_history($conn, $orders);
 
     echo json_encode([
         "success" => true,

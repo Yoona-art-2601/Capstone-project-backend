@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../config/order_flow.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -35,6 +36,7 @@ try {
         $order['items'] = $stmt2->fetchAll(PDO::FETCH_ASSOC);
     }
     unset($order);
+    attach_history($conn, $orders);
 
     echo json_encode([
         "success" => true,

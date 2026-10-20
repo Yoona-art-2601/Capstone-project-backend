@@ -3,6 +3,7 @@ session_start();
 require_once '../config/database.php';
 require_once '../config/stripe.php';
 require_once '../config/checkout.php';
+require_once '../config/order_flow.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -62,6 +63,8 @@ try {
         ':bid' => $checkout['branch']['branch_id']
     ]);
     $order_id = $conn->lastInsertId();
+    record_status($conn, $order_id, $is_online ? 'Awaiting Payment' : 'Pending',
+        $is_online ? 'Order created, waiting for online payment' : 'Order placed', $customer_name);
 
     $item_stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, subtotal) VALUES (:oid, :pid, :qty, :subtotal)");
     foreach ($checkout['lines'] as $line) {
