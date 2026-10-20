@@ -2,21 +2,21 @@
 session_start();
 require_once '../config/database.php';
 require_once '../config/stripe.php';
-require_once '../config/shop.php';
+require_once '../config/checkout.php';
 
-$data = json_decode(file_get_contents("php://input"), true);
-
-if (!isset($data['branch_id']) || !isset($data['items']) || !is_array($data['items']) || count($data['items']) === 0) {
-    echo json_encode(["success" => false, "message" => "Missing branch_id or items"]);
+if (!isset($_SESSION['user_id'])) {
+    http_response_code(401);
+    echo json_encode(["success" => false, "message" => "Please login to place an order"]);
     exit;
 }
 
+$data = json_decode(file_get_contents("php://input"), true) ?? [];
+
 $customer_name = trim($data['customer_name'] ?? '');
 $customer_phone = trim($data['customer_phone'] ?? '');
-$customer_address = trim($data['customer_address'] ?? '');
 
-if ($customer_name === '' || $customer_phone === '' || $customer_address === '') {
-    echo json_encode(["success" => false, "message" => "Name, phone number and address are required"]);
+if ($customer_name === '' || $customer_phone === '') {
+    echo json_encode(["success" => false, "message" => "Name and phone number are required"]);
     exit;
 }
 
@@ -26,86 +26,46 @@ if (!preg_match('/^\+?[0-9\s-]+$/', $customer_phone) || strlen($phone_digits) < 
     exit;
 }
 
-$branch_id = $data['branch_id'];
-
 try {
+    $checkout = build_checkout($conn, $data, true);
+    $is_online = $checkout['payment_method'] === 'Stripe';
+    $address = $checkout['address'];
+
     $conn->beginTransaction();
 
-    $line_items = [];
-    $order_lines = [];
-    $total = 0;
-
-    // check stock for each item in the order
-    foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("
-            SELECT p.name, p.price, p.sale_price, bs.stock
-            FROM products p
-            JOIN branch_stock bs ON p.product_id = bs.product_id
-            WHERE p.product_id = :pid AND bs.branch_id = :bid AND p.is_active = 1
-        ");
-        $stmt->execute([':pid' => $item['product_id'], ':bid' => $branch_id]);
-        $product = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$product) {
-            throw new Exception("Product ID {$item['product_id']} not found in this branch");
-        }
-        if ($product['stock'] < $item['quantity']) {
-            throw new Exception("Insufficient stock for {$product['name']}");
-        }
-
-        $unit_price = effective_price($product['price'], $product['sale_price']);
-        $subtotal = $unit_price * $item['quantity'];
-        $total += $subtotal;
-
-        $order_lines[] = [
-            'product_id' => $item['product_id'],
-            'quantity' => $item['quantity'],
-            'subtotal' => $subtotal
-        ];
-
-        
-        $line_items[] = [
-            'price_data' => [
-                'currency' => 'myr',
-                'product_data' => ['name' => $product['name']],
-                'unit_amount' => (int) round($unit_price * 100),
-            ],
-            'quantity' => $item['quantity'],
-        ];
-    }
-
-    $delivery_fee = delivery_fee_for($total);
-    if ($delivery_fee > 0) {
-        $line_items[] = [
-            'price_data' => [
-                'currency' => 'myr',
-                'product_data' => ['name' => 'Delivery fee (free for orders RM' . number_format(FREE_DELIVERY_THRESHOLD, 0) . ' and above)'],
-                'unit_amount' => (int) round($delivery_fee * 100),
-            ],
-            'quantity' => 1,
-        ];
-    }
-    $total += $delivery_fee;
-
-    // ② create order in orders table
-    $stmt = $conn->prepare("INSERT INTO orders (user_id, customer_name, customer_phone, customer_address, status, total_amount, delivery_fee, branch_id, payment_status)
-                             VALUES (:uid, :name, :phone, :address, 'Awaiting Payment', :total, :fee, :bid, 'Unpaid')");
+    $stmt = $conn->prepare("
+        INSERT INTO orders (user_id, customer_name, customer_phone, customer_address, delivery_type, payment_method,
+                            street, city, state, postcode, distance_km, slot_date, slot_time,
+                            status, total_amount, delivery_fee, sst_amount, branch_id, payment_status)
+        VALUES (:uid, :name, :phone, :address, :dtype, :pmethod,
+                :street, :city, :state, :postcode, :distance, :sdate, :stime,
+                :status, :total, :fee, :sst, :bid, 'Unpaid')
+    ");
     $stmt->execute([
-        ':uid' => $_SESSION['user_id'] ?? null,
+        ':uid' => $_SESSION['user_id'],
         ':name' => $customer_name,
         ':phone' => $customer_phone,
-        ':address' => $customer_address,
-        ':total' => $total,
-        ':fee' => $delivery_fee,
-        ':bid' => $branch_id
+        ':address' => format_address($address),
+        ':dtype' => $checkout['delivery_type'],
+        ':pmethod' => $checkout['payment_method'],
+        ':street' => $address['street'],
+        ':city' => $address['city'],
+        ':state' => $address['state'],
+        ':postcode' => $address['postcode'],
+        ':distance' => $checkout['distance_km'],
+        ':sdate' => $checkout['slot_date'],
+        ':stime' => $checkout['slot_time'],
+        ':status' => $is_online ? 'Awaiting Payment' : 'Pending',
+        ':total' => $checkout['total'],
+        ':fee' => $checkout['delivery_fee'],
+        ':sst' => $checkout['sst'],
+        ':bid' => $checkout['branch']['branch_id']
     ]);
     $order_id = $conn->lastInsertId();
 
-    // order
-    foreach ($order_lines as $line) {
-        $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, subtotal)
-                                 VALUES (:oid, :pid, :qty, :subtotal)");
-        $stmt->execute([
+    $item_stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, subtotal) VALUES (:oid, :pid, :qty, :subtotal)");
+    foreach ($checkout['lines'] as $line) {
+        $item_stmt->execute([
             ':oid' => $order_id,
             ':pid' => $line['product_id'],
             ':qty' => $line['quantity'],
@@ -113,9 +73,73 @@ try {
         ]);
     }
 
+    if (!$is_online) {
+        $upd = $conn->prepare("UPDATE branch_stock SET stock = stock - :qty WHERE product_id = :pid AND branch_id = :bid AND stock >= :qty2");
+        $log = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change) VALUES (:pid, :bid, 'Sale', :qty)");
+        foreach ($checkout['lines'] as $line) {
+            $upd->execute([
+                ':qty' => $line['quantity'],
+                ':qty2' => $line['quantity'],
+                ':pid' => $line['product_id'],
+                ':bid' => $checkout['branch']['branch_id']
+            ]);
+            if ($upd->rowCount() === 0) throw new Exception("Not enough stock for {$line['name']}");
+            $log->execute([':pid' => $line['product_id'], ':bid' => $checkout['branch']['branch_id'], ':qty' => -$line['quantity']]);
+        }
+        $conn->prepare("UPDATE orders SET stock_deducted = 1 WHERE order_id = :oid")->execute([':oid' => $order_id]);
+    }
+
+    if (!empty($data['save_details'])) {
+        $profile = $conn->prepare("UPDATE users SET phone = :phone" . ($address['street'] ? ", street = :street, city = :city, state = :state, postcode = :postcode" : "") . " WHERE user_id = :uid");
+        $params = [':phone' => $customer_phone, ':uid' => $_SESSION['user_id']];
+        if ($address['street']) {
+            $params += [':street' => $address['street'], ':city' => $address['city'], ':state' => $address['state'], ':postcode' => $address['postcode']];
+        }
+        $profile->execute($params);
+    }
+
     $conn->commit();
 
-    
+    if (!$is_online) {
+        echo json_encode([
+            "success" => true,
+            "order_id" => $order_id,
+            "total_amount" => $checkout['total'],
+            "redirect_url" => FRONTEND_URL . "/my-orders?placed=" . $order_id
+        ]);
+        exit;
+    }
+
+    $line_items = [];
+    foreach ($checkout['lines'] as $line) {
+        $line_items[] = [
+            'price_data' => [
+                'currency' => 'myr',
+                'product_data' => ['name' => $line['name']],
+                'unit_amount' => (int) round($line['unit_price'] * 100),
+            ],
+            'quantity' => $line['quantity'],
+        ];
+    }
+    $line_items[] = [
+        'price_data' => [
+            'currency' => 'myr',
+            'product_data' => ['name' => 'SST ' . round(SST_RATE * 100) . '%'],
+            'unit_amount' => (int) round($checkout['sst'] * 100),
+        ],
+        'quantity' => 1,
+    ];
+    if ($checkout['delivery_fee'] > 0) {
+        $line_items[] = [
+            'price_data' => [
+                'currency' => 'myr',
+                'product_data' => ['name' => 'Delivery fee (' . number_format($checkout['distance_km'], 1) . ' km)'],
+                'unit_amount' => (int) round($checkout['delivery_fee'] * 100),
+            ],
+            'quantity' => 1,
+        ];
+    }
+
     $session = stripe_request('POST', 'checkout/sessions', [
         'mode' => 'payment',
         'payment_method_types' => ['card'],
@@ -126,24 +150,21 @@ try {
     ]);
 
     if (!isset($session['url'])) {
-        // fail to create Stripe session, cancel the order
         $conn->prepare("UPDATE orders SET status = 'Cancelled' WHERE order_id = :oid")->execute([':oid' => $order_id]);
         throw new Exception("Stripe error: " . ($session['error']['message'] ?? 'unknown error'));
     }
 
-    
-    $stmt = $conn->prepare("UPDATE orders SET stripe_session_id = :sid WHERE order_id = :oid");
-    $stmt->execute([':sid' => $session['id'], ':oid' => $order_id]);
+    $conn->prepare("UPDATE orders SET stripe_session_id = :sid WHERE order_id = :oid")
+         ->execute([':sid' => $session['id'], ':oid' => $order_id]);
 
     echo json_encode([
         "success" => true,
         "order_id" => $order_id,
-        "total_amount" => $total,
-        "delivery_fee" => $delivery_fee,
+        "total_amount" => $checkout['total'],
         "checkout_url" => $session['url']
     ]);
 
-} catch(Exception $e) {
+} catch (Exception $e) {
     if ($conn->inTransaction()) {
         $conn->rollBack();
     }

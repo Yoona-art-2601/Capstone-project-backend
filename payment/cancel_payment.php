@@ -5,7 +5,7 @@ require_once '../config/stripe.php';
 $order_id = $_GET['order_id'] ?? null;
 
 if ($order_id) {
-    $stmt = $conn->prepare("UPDATE orders SET status = 'Cancelled' WHERE order_id = :oid AND payment_status = 'Unpaid'");
+    $stmt = $conn->prepare("UPDATE orders SET status = 'Cancelled' WHERE order_id = :oid AND payment_status = 'Unpaid' AND payment_method = 'Stripe' AND status = 'Awaiting Payment'");
     $stmt->execute([':oid' => $order_id]);
 }
 

@@ -68,7 +68,7 @@ try {
     }
 
     
-    $stmt = $conn->prepare("UPDATE orders SET payment_status = 'Paid', status = 'Pending' WHERE order_id = :oid");
+    $stmt = $conn->prepare("UPDATE orders SET payment_status = 'Paid', status = 'Pending', stock_deducted = 1 WHERE order_id = :oid");
     $stmt->execute([':oid' => $order['order_id']]);
 
     $conn->commit();

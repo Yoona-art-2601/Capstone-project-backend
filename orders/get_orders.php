@@ -8,8 +8,8 @@ $branch_filter = $branch_id ? "WHERE o.branch_id = :branch_id" : "";
 try {
     $stmt = $conn->prepare("
         SELECT
-            o.order_id, o.customer_name, o.customer_phone, o.customer_address, o.order_date,
-            o.status, o.payment_status, o.total_amount, o.delivery_fee,
+            o.order_id, o.customer_name, o.customer_phone, o.customer_address, o.delivery_type, o.payment_method, o.distance_km, o.slot_date, o.slot_time, o.order_date,
+            o.status, o.payment_status, o.total_amount, o.delivery_fee, o.sst_amount,
             o.branch_id, b.branch_name
         FROM orders o
         LEFT JOIN branches b ON o.branch_id = b.branch_id
