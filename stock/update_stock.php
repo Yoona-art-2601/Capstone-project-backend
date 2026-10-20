@@ -2,6 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
+require_once '../config/notifications.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -54,6 +55,7 @@ try {
         "{$data['change_type']} " . ($qty > 0 ? "+$qty" : $qty) . " for " . product_name($conn, $data['product_id'])
         . " at " . branch_name($conn, $data['branch_id']) . " (" . ($new_stock - $qty) . " -> $new_stock)");
 
+    check_stock_levels($conn, $data['branch_id'], [$data['product_id']]);
     $conn->commit();
 
     echo json_encode(["success" => true, "message" => "Stock updated successfully"]);

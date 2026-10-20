@@ -2,6 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
+require_once '../config/notifications.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -35,6 +36,7 @@ try {
         "Low-stock threshold for " . product_name($conn, $data['product_id']) . " at " . branch_name($conn, $data['branch_id'])
         . ": $old_threshold -> " . (int)$data['low_stock_threshold']);
 
+    check_stock_levels($conn, $data['branch_id'], [$data['product_id']]);
     echo json_encode(["success" => true, "message" => "Threshold updated successfully"]);
 } catch(PDOException $e) {
     echo json_encode(["success" => false, "message" => $e->getMessage()]);

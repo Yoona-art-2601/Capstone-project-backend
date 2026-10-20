@@ -2,6 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
+require_once '../config/notifications.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -80,6 +81,8 @@ try {
         "Transferred $quantity x " . product_name($conn, $product_id) . " from " . branch_name($conn, $from_branch)
         . " to " . branch_name($conn, $to_branch));
 
+    check_stock_levels($conn, $from_branch, [$product_id]);
+    check_stock_levels($conn, $to_branch, [$product_id]);
     $conn->commit();
 
     echo json_encode(["success" => true, "message" => "Stock transferred successfully"]);

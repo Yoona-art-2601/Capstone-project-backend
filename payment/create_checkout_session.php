@@ -90,6 +90,7 @@ try {
             $log->execute([':pid' => $line['product_id'], ':bid' => $checkout['branch']['branch_id'], ':qty' => -$line['quantity']]);
         }
         $conn->prepare("UPDATE orders SET stock_deducted = 1 WHERE order_id = :oid")->execute([':oid' => $order_id]);
+        check_stock_levels($conn, $checkout['branch']['branch_id'], array_column($checkout['lines'], 'product_id'));
     }
 
     if (!empty($data['save_details'])) {

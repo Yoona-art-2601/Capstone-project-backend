@@ -2,6 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
+require_once '../config/notifications.php';
 require_once '../config/shop.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -102,6 +103,7 @@ try {
         "Created order #$order_id for {$data['customer_name']} at " . branch_name($conn, $branch_id)
         . " (RM " . number_format($total_amount, 2) . ")");
 
+    check_stock_levels($conn, $branch_id, array_column($data['items'], 'product_id'));
     $conn->commit();
 
     echo json_encode([

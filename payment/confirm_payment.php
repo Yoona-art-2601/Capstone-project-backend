@@ -72,6 +72,7 @@ try {
     $stmt = $conn->prepare("UPDATE orders SET payment_status = 'Paid', status = 'Pending', stock_deducted = 1 WHERE order_id = :oid");
     $stmt->execute([':oid' => $order['order_id']]);
     record_status($conn, $order['order_id'], 'Pending', 'Online payment received', 'Stripe');
+    check_stock_levels($conn, $order['branch_id'], array_column($items, 'product_id'));
 
     $conn->commit();
 
