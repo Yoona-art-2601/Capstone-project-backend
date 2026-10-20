@@ -25,7 +25,7 @@ function build_checkout($conn, $data, $require_slot = true) {
         $qty = (int)($item['quantity'] ?? 0);
         if ($qty <= 0) throw new Exception("Invalid quantity");
         $stmt = $conn->prepare("
-            SELECT p.product_id, p.name, p.price, p.sale_price, bs.stock
+            SELECT p.product_id, p.name, p.price, " . ACTIVE_SALE_SQL . " AS sale_price, bs.stock
             FROM products p
             JOIN branch_stock bs ON p.product_id = bs.product_id
             WHERE p.product_id = :pid AND bs.branch_id = :bid AND p.is_active = 1

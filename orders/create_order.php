@@ -42,7 +42,7 @@ try {
     // calculate total amount
     $total_amount = 0;
     foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT price, sale_price FROM products WHERE product_id = :pid");
+        $stmt = $conn->prepare("SELECT p.price, " . ACTIVE_SALE_SQL . " AS sale_price FROM products p WHERE p.product_id = :pid");
         $stmt->execute([':pid' => $item['product_id']]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $price = effective_price($row['price'], $row['sale_price']);
@@ -62,7 +62,7 @@ try {
 
     // write order_items, update branch_stock, and write stock_logs
     foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT price, sale_price FROM products WHERE product_id = :pid");
+        $stmt = $conn->prepare("SELECT p.price, " . ACTIVE_SALE_SQL . " AS sale_price FROM products p WHERE p.product_id = :pid");
         $stmt->execute([':pid' => $item['product_id']]);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
         $price = effective_price($row['price'], $row['sale_price']);

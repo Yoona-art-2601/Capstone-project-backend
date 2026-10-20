@@ -16,7 +16,7 @@ if (!is_numeric($data['price']) || $data['price'] < 0) {
 }
 
 try {
-    $stmt = $conn->prepare("SELECT name, category, price, sale_price, description FROM products WHERE product_id = :pid AND is_active = 1");
+    $stmt = $conn->prepare("SELECT name, category, price, sale_price, sale_start, sale_end, description FROM products WHERE product_id = :pid AND is_active = 1");
     $stmt->execute([':pid' => $data['product_id']]);
     $old = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$old) {
@@ -39,18 +39,42 @@ try {
         }
     }
 
+    $parse_date = function ($value, $time) {
+        if ($value === null || $value === '') return null;
+        $d = DateTime::createFromFormat('Y-m-d H:i:s', substr((string)$value, 0, 10) . ' ' . $time);
+        return $d ? $d->format('Y-m-d H:i:s') : false;
+    };
+    $sale_start = $old['sale_start'];
+    $sale_end = $old['sale_end'];
+    if (array_key_exists('sale_start', $data)) $sale_start = $parse_date($data['sale_start'], '00:00:00');
+    if (array_key_exists('sale_end', $data)) $sale_end = $parse_date($data['sale_end'], '23:59:59');
+    if ($sale_start === false || $sale_end === false) {
+        echo json_encode(["success" => false, "message" => "Promotion dates must be valid dates"]);
+        exit;
+    }
+    if ($sale_start && $sale_end && $sale_end < $sale_start) {
+        echo json_encode(["success" => false, "message" => "Promotion end date must be on or after the start date"]);
+        exit;
+    }
+    if ($sale_price === null) {
+        $sale_start = null;
+        $sale_end = null;
+    }
+
     $description = $old['description'];
     if (array_key_exists('description', $data)) {
         $description = trim((string)$data['description']);
         if ($description === '') $description = null;
     }
 
-    $stmt = $conn->prepare("UPDATE products SET name = :name, category = :category, price = :price, sale_price = :sale, description = :descr WHERE product_id = :pid");
+    $stmt = $conn->prepare("UPDATE products SET name = :name, category = :category, price = :price, sale_price = :sale, sale_start = :sstart, sale_end = :send, description = :descr WHERE product_id = :pid");
     $stmt->execute([
         ':name' => $data['name'],
         ':category' => $data['category'] ?? null,
         ':price' => $data['price'],
         ':sale' => $sale_price,
+        ':sstart' => $sale_start,
+        ':send' => $sale_end,
         ':descr' => $description,
         ':pid' => $data['product_id']
     ]);
@@ -62,6 +86,10 @@ try {
     if ((float)$old['price'] !== (float)$data['price']) $changes[] = "price: RM {$old['price']} -> RM " . number_format($data['price'], 2);
     if ($old['sale_price'] === null ? $sale_price !== null : ($sale_price === null || (float)$old['sale_price'] !== (float)$sale_price)) {
         $changes[] = "sale price: " . $fmt($old['sale_price']) . " -> " . $fmt($sale_price);
+    }
+    if ($old['sale_start'] !== $sale_start || $old['sale_end'] !== $sale_end) {
+        $period = fn($s, $e) => ($s ? substr($s, 0, 10) : 'now') . ' to ' . ($e ? substr($e, 0, 10) : 'no end');
+        $changes[] = "promotion period: " . $period($old['sale_start'], $old['sale_end']) . " -> " . $period($sale_start, $sale_end);
     }
     if (($old['description'] ?? '') !== ($description ?? '')) $changes[] = "description updated";
     audit_log($conn, 'PRODUCT_UPDATE', 'product', $data['product_id'],

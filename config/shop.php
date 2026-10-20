@@ -6,6 +6,7 @@ define('DELIVERY_PER_KM', 1.00);
 define('DELIVERY_MAX_KM', 30);
 define('SST_RATE', 0.06);
 define('WHATSAPP_NUMBER', '60163334371');
+define('ACTIVE_SALE_SQL', "CASE WHEN p.sale_price IS NOT NULL AND (p.sale_start IS NULL OR p.sale_start <= NOW()) AND (p.sale_end IS NULL OR p.sale_end >= NOW()) THEN p.sale_price ELSE NULL END");
 define('TIME_SLOTS', ['10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00']);
 define('SAME_DAY_CUTOFF', '15:00');
 define('SLOT_LEAD_MINUTES', 60);

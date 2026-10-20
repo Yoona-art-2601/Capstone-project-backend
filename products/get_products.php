@@ -1,5 +1,6 @@
 <?php
 require_once '../config/database.php';
+require_once '../config/shop.php';
 
 // get the branch_id from the query parameter, default to 1 if not provided
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : 1; // 默认分店1
@@ -11,7 +12,10 @@ try {
             p.name,
             p.category,
             p.price,
-            p.sale_price,
+            " . ACTIVE_SALE_SQL . " AS sale_price,
+            p.sale_price AS sale_price_set,
+            p.sale_start,
+            p.sale_end,
             p.image_url,
             p.description,
             bs.stock,
