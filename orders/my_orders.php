@@ -26,9 +26,11 @@ try {
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
     $stmt2 = $conn->prepare("
-        SELECT p.name, p.category, oi.quantity, oi.subtotal
+        SELECT oi.product_id, p.name, p.category, p.image_url, oi.quantity, oi.subtotal,
+               r.rating AS my_rating, r.comment AS my_comment
         FROM order_items oi
         JOIN products p ON oi.product_id = p.product_id
+        LEFT JOIN product_reviews r ON r.order_id = oi.order_id AND r.product_id = oi.product_id
         WHERE oi.order_id = :oid
     ");
     foreach ($orders as &$order) {

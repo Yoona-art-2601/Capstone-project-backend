@@ -17,7 +17,9 @@ try {
             bs.stock,
             bs.low_stock_threshold,
             p.created_at,
-            COALESCE(sold.qty, 0) AS sold
+            COALESCE(sold.qty, 0) AS sold,
+            rv.avg_rating,
+            COALESCE(rv.review_count, 0) AS review_count
         FROM products p
         JOIN branch_stock bs ON p.product_id = bs.product_id
         LEFT JOIN (
@@ -27,6 +29,11 @@ try {
             WHERE o.payment_status = 'Paid' AND o.status != 'Cancelled'
             GROUP BY oi.product_id
         ) sold ON sold.product_id = p.product_id
+        LEFT JOIN (
+            SELECT product_id, ROUND(AVG(rating), 1) AS avg_rating, COUNT(*) AS review_count
+            FROM product_reviews
+            GROUP BY product_id
+        ) rv ON rv.product_id = p.product_id
         WHERE bs.branch_id = :branch_id AND p.is_active = 1
         ORDER BY p.product_id DESC
     ");
