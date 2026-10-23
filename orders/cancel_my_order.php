@@ -2,7 +2,7 @@
 session_start();
 require_once '../config/database.php';
 require_once '../config/audit.php';
-require_once '../config/order_flow.php';
+require_once '../config/payments.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -14,6 +14,25 @@ $data = json_decode(file_get_contents("php://input"), true);
 $order_id = (int)($data['order_id'] ?? 0);
 
 try {
+    $stmt = $conn->prepare("SELECT order_id, user_id, status, payment_status, payment_method, stripe_session_id FROM orders WHERE order_id = :oid");
+    $stmt->execute([':oid' => $order_id]);
+    $online = $stmt->fetch(PDO::FETCH_ASSOC);
+    if ($online && (int)$online['user_id'] === (int)$_SESSION['user_id']
+        && $online['status'] === 'Awaiting Payment' && $online['payment_method'] === 'Stripe' && $online['payment_status'] === 'Unpaid') {
+        $result = settle_awaiting_order($conn, $online, 'Cancelled by customer', $_SESSION['name'] ?? 'Customer', true);
+        if ($result === 'cancelled') {
+            audit_log($conn, 'ORDER_CANCEL', 'order', $order_id, "Order #$order_id cancelled by customer");
+            echo json_encode(["success" => true, "message" => "Order cancelled"]);
+        } elseif ($result === 'paid') {
+            echo json_encode(["success" => false, "message" => "Your payment for this order has just been received, so it can no longer be cancelled online. Please contact the store"]);
+        } elseif ($result === 'unknown') {
+            echo json_encode(["success" => false, "message" => "Could not reach the payment provider. Please try again"]);
+        } else {
+            echo json_encode(["success" => true, "message" => "Order cancelled and payment refunded"]);
+        }
+        exit;
+    }
+
     $conn->beginTransaction();
 
     $stmt = $conn->prepare("SELECT order_id, user_id, status, payment_status, payment_method, branch_id, stock_deducted FROM orders WHERE order_id = :oid FOR UPDATE");

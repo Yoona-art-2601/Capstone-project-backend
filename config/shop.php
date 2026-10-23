@@ -11,6 +11,7 @@ define('TIME_SLOTS', ['10:00-12:00', '12:00-14:00', '14:00-16:00', '16:00-18:00'
 define('SAME_DAY_CUTOFF', '15:00');
 define('SLOT_LEAD_MINUTES', 60);
 define('SLOT_DAYS_AHEAD', 7);
+define('PAYMENT_WINDOW_MINUTES', 30);
 define('MALAYSIA_STATES', [
     'Johor', 'Kedah', 'Kelantan', 'Melaka', 'Negeri Sembilan', 'Pahang', 'Perak', 'Perlis',
     'Pulau Pinang', 'Sabah', 'Sarawak', 'Selangor', 'Terengganu',

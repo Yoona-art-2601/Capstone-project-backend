@@ -2,123 +2,96 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
-require_once '../config/notifications.php';
+require_once '../config/order_flow.php';
 require_once '../config/shop.php';
 
-$data = json_decode(file_get_contents("php://input"), true);
+$data = json_decode(file_get_contents("php://input"), true) ?? [];
 
-// check customer_name, branch_id, and items
-if (!isset($data['branch_id']) || !isset($data['customer_name']) || !isset($data['items']) || count($data['items']) === 0) {
-    echo json_encode([
-        "success" => false,
-        "message" => "Missing branch_id, customer_name or items"
-    ]);
-    exit;
+$branch_id = (int)($data['branch_id'] ?? 0);
+$customer_name = trim((string)($data['customer_name'] ?? ''));
+$customer_phone = trim((string)($data['customer_phone'] ?? ''));
+
+$quantities = [];
+foreach (is_array($data['items'] ?? null) ? $data['items'] : [] as $item) {
+    $pid = (int)($item['product_id'] ?? 0);
+    $qty = (int)($item['quantity'] ?? 0);
+    if ($pid <= 0 || $qty <= 0) {
+        echo json_encode(["success" => false, "message" => "Each item needs a product_id and a quantity of at least 1"]);
+        exit;
+    }
+    $quantities[$pid] = ($quantities[$pid] ?? 0) + $qty;
 }
 
-$branch_id = $data['branch_id'];
+if ($branch_id <= 0 || $customer_name === '' || !$quantities) {
+    echo json_encode(["success" => false, "message" => "Missing branch_id, customer_name or items"]);
+    exit;
+}
 
 try {
     $conn->beginTransaction();
 
-    // check stock availability for each item in the order
-    foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("
-            SELECT bs.stock, p.price 
-            FROM branch_stock bs
-            JOIN products p ON bs.product_id = p.product_id
-            WHERE bs.product_id = :pid AND bs.branch_id = :bid
-        ");
-        $stmt->execute([':pid' => $item['product_id'], ':bid' => $branch_id]);
+    $stmt = $conn->prepare("
+        SELECT p.product_id, p.name, p.price, " . ACTIVE_SALE_SQL . " AS sale_price, bs.stock
+        FROM products p
+        JOIN branch_stock bs ON bs.product_id = p.product_id AND bs.branch_id = :bid
+        WHERE p.product_id = :pid AND p.is_active = 1
+        FOR UPDATE
+    ");
+    $lines = [];
+    $subtotal = 0;
+    foreach ($quantities as $pid => $qty) {
+        $stmt->execute([':pid' => $pid, ':bid' => $branch_id]);
         $product = $stmt->fetch(PDO::FETCH_ASSOC);
-
-        if (!$product) {
-            throw new Exception("Product ID {$item['product_id']} not found in this branch");
-        }
-        if ($product['stock'] < $item['quantity']) {
-            throw new Exception("Insufficient stock for product ID {$item['product_id']} in this branch");
-        }
+        if (!$product) throw new Exception("Product ID $pid is not sold at this branch");
+        if ((int)$product['stock'] < $qty) throw new Exception("Only {$product['stock']} of {$product['name']} left at this branch");
+        $line_total = round(effective_price($product['price'], $product['sale_price']) * $qty, 2);
+        $lines[] = ['product_id' => $pid, 'quantity' => $qty, 'subtotal' => $line_total];
+        $subtotal += $line_total;
     }
+    $subtotal = round($subtotal, 2);
+    $sst = sst_for($subtotal);
+    $total = round($subtotal + $sst, 2);
 
-    // calculate total amount
-    $total_amount = 0;
-    foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT p.price, " . ACTIVE_SALE_SQL . " AS sale_price FROM products p WHERE p.product_id = :pid");
-        $stmt->execute([':pid' => $item['product_id']]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $price = effective_price($row['price'], $row['sale_price']);
-        $total_amount += $price * $item['quantity'];
-    }
-
-    // write order to orders table
-    $stmt = $conn->prepare("INSERT INTO orders (customer_name, customer_phone, status, total_amount, branch_id) 
-                             VALUES (:name, :phone, 'Pending', :total, :bid)");
-    $stmt->execute([
-        ':name' => $data['customer_name'],
-        ':phone' => $data['customer_phone'] ?? null,
-        ':total' => $total_amount,
-        ':bid' => $branch_id
-    ]);
+    $conn->prepare("INSERT INTO orders (customer_name, customer_phone, delivery_type, payment_method, status, payment_status,
+                                        total_amount, delivery_fee, sst_amount, stock_deducted, branch_id)
+                    VALUES (:name, :phone, 'Pickup', 'PayAtStore', 'Pending', 'Unpaid', :total, 0, :sst, 1, :bid)")
+         ->execute([
+             ':name' => $customer_name,
+             ':phone' => $customer_phone === '' ? null : $customer_phone,
+             ':total' => $total,
+             ':sst' => $sst,
+             ':bid' => $branch_id
+         ]);
     $order_id = $conn->lastInsertId();
 
-    // write order_items, update branch_stock, and write stock_logs
-    foreach ($data['items'] as $item) {
-        $stmt = $conn->prepare("SELECT p.price, " . ACTIVE_SALE_SQL . " AS sale_price FROM products p WHERE p.product_id = :pid");
-        $stmt->execute([':pid' => $item['product_id']]);
-        $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        $price = effective_price($row['price'], $row['sale_price']);
-        $subtotal = $price * $item['quantity'];
-
-        // write order_items
-        $stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, subtotal) 
-                                 VALUES (:oid, :pid, :qty, :subtotal)");
-        $stmt->execute([
-            ':oid' => $order_id,
-            ':pid' => $item['product_id'],
-            ':qty' => $item['quantity'],
-            ':subtotal' => $subtotal
-        ]);
-
-        // 扣减该分店的库存
-        $stmt = $conn->prepare("UPDATE branch_stock 
-                                 SET stock = stock - :qty 
-                                 WHERE product_id = :pid AND branch_id = :bid");
-        $stmt->execute([
-            ':qty' => $item['quantity'],
-            ':pid' => $item['product_id'],
-            ':bid' => $branch_id
-        ]);
-
-        // 写入 stock_logs（含分店，负数代表扣减）
-        $stmt = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change) 
-                                 VALUES (:pid, :bid, 'Sale', :qty)");
-        $stmt->execute([
-            ':pid' => $item['product_id'],
-            ':bid' => $branch_id,
-            ':qty' => -$item['quantity']
-        ]);
+    $item_stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, quantity, subtotal) VALUES (:oid, :pid, :qty, :subtotal)");
+    $upd = $conn->prepare("UPDATE branch_stock SET stock = stock - :qty WHERE product_id = :pid AND branch_id = :bid");
+    $log = $conn->prepare("INSERT INTO stock_logs (product_id, branch_id, change_type, quantity_change) VALUES (:pid, :bid, 'Sale', :qty)");
+    foreach ($lines as $line) {
+        $item_stmt->execute([':oid' => $order_id, ':pid' => $line['product_id'], ':qty' => $line['quantity'], ':subtotal' => $line['subtotal']]);
+        $upd->execute([':qty' => $line['quantity'], ':pid' => $line['product_id'], ':bid' => $branch_id]);
+        $log->execute([':pid' => $line['product_id'], ':bid' => $branch_id, ':qty' => -$line['quantity']]);
     }
 
+    record_status($conn, $order_id, 'Pending', 'Order placed by staff', $_SESSION['name'] ?? 'Admin');
     audit_log($conn, 'ORDER_CREATE', 'order', $order_id,
-        "Created order #$order_id for {$data['customer_name']} at " . branch_name($conn, $branch_id)
-        . " (RM " . number_format($total_amount, 2) . ")");
+        "Created order #$order_id for $customer_name at " . branch_name($conn, $branch_id) . " (RM " . number_format($total, 2) . ")");
+    check_stock_levels($conn, $branch_id, array_keys($quantities));
 
-    check_stock_levels($conn, $branch_id, array_column($data['items'], 'product_id'));
     $conn->commit();
 
     echo json_encode([
         "success" => true,
         "message" => "Order created successfully",
         "order_id" => $order_id,
-        "total_amount" => $total_amount,
+        "subtotal" => $subtotal,
+        "sst_amount" => $sst,
+        "total_amount" => $total,
         "branch_id" => $branch_id
     ]);
 
-} catch(Exception $e) {
-    $conn->rollBack();
-    echo json_encode([
-        "success" => false,
-        "message" => $e->getMessage()
-    ]);
+} catch (Exception $e) {
+    if ($conn->inTransaction()) $conn->rollBack();
+    echo json_encode(["success" => false, "message" => $e->getMessage()]);
 }
 ?>

@@ -11,7 +11,7 @@ try {
         SELECT COUNT(*) as order_count, COALESCE(SUM(total_amount), 0) as total_sales
         FROM orders
         WHERE DATE(order_date) = CURDATE()
-        AND status != 'Cancelled'
+        AND status != 'Cancelled' AND payment_status = 'Paid'
         $branch_filter
     ");
     if ($branch_id) $stmt->bindValue(':branch_id', $branch_id);
@@ -23,7 +23,7 @@ try {
         SELECT COUNT(*) as order_count, COALESCE(SUM(total_amount), 0) as total_sales
         FROM orders
         WHERE YEARWEEK(order_date, 1) = YEARWEEK(CURDATE(), 1)
-        AND status != 'Cancelled'
+        AND status != 'Cancelled' AND payment_status = 'Paid'
         $branch_filter
     ");
     if ($branch_id) $stmt->bindValue(':branch_id', $branch_id);
@@ -36,7 +36,7 @@ try {
         FROM orders
         WHERE YEAR(order_date) = YEAR(CURDATE())
         AND MONTH(order_date) = MONTH(CURDATE())
-        AND status != 'Cancelled'
+        AND status != 'Cancelled' AND payment_status = 'Paid'
         $branch_filter
     ");
     if ($branch_id) $stmt->bindValue(':branch_id', $branch_id);

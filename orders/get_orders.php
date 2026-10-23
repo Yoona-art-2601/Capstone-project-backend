@@ -1,12 +1,14 @@
 <?php
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
-require_once '../config/order_flow.php';
+require_once '../config/payments.php';
 
 $branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
 $branch_filter = $branch_id ? "WHERE o.branch_id = :branch_id" : "";
 
 try {
+    expire_stale_payments($conn);
+
     $stmt = $conn->prepare("
         SELECT
             o.order_id, o.customer_name, o.customer_phone, o.customer_address, o.delivery_type, o.payment_method, o.distance_km, o.slot_date, o.slot_time, o.order_date,

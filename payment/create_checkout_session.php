@@ -1,9 +1,8 @@
 <?php
 session_start();
 require_once '../config/database.php';
-require_once '../config/stripe.php';
 require_once '../config/checkout.php';
-require_once '../config/order_flow.php';
+require_once '../config/payments.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -151,10 +150,11 @@ try {
         'client_reference_id' => $order_id,
         'success_url' => BACKEND_URL . '/payment/confirm_payment.php?session_id={CHECKOUT_SESSION_ID}',
         'cancel_url' => BACKEND_URL . '/payment/cancel_payment.php?order_id=' . $order_id,
+        'expires_at' => time() + (PAYMENT_WINDOW_MINUTES + 1) * 60,
     ]);
 
     if (!isset($session['url'])) {
-        $conn->prepare("UPDATE orders SET status = 'Cancelled' WHERE order_id = :oid")->execute([':oid' => $order_id]);
+        cancel_unpaid_stripe_order($conn, ['order_id' => $order_id], 'Could not start the online payment', 'System');
         throw new Exception("Stripe error: " . ($session['error']['message'] ?? 'unknown error'));
     }
 
