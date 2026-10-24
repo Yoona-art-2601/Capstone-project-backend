@@ -56,6 +56,6 @@ try {
         "dispatches" => ["data" => $dispatches, "page" => $dispatch_page, "pages" => max(1, (int)ceil($dispatch_total / $per_page)), "total" => $dispatch_total]
     ]);
 } catch (PDOException $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

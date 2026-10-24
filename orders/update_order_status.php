@@ -2,7 +2,7 @@
 require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
-require_once '../config/order_flow.php';
+require_once '../config/payments.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -14,7 +14,7 @@ if (!isset($data['order_id']) || !isset($data['status'])) {
 try {
     $conn->beginTransaction();
 
-    $stmt = $conn->prepare("SELECT order_id, status, payment_status, payment_method, delivery_type, branch_id, stock_deducted FROM orders WHERE order_id = :oid FOR UPDATE");
+    $stmt = $conn->prepare("SELECT order_id, status, payment_status, payment_method, delivery_type, branch_id, stock_deducted, stripe_session_id FROM orders WHERE order_id = :oid FOR UPDATE");
     $stmt->execute([':oid' => $data['order_id']]);
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -38,11 +38,24 @@ try {
         return_order_stock($conn, $order);
         $notes[] = 'stock returned to branch';
     }
+    $payment_status = $order['payment_status'];
+    $refund_failed = false;
     if ($new_status === 'Cancelled' && $order['payment_status'] === 'Paid' && $order['payment_method'] === 'Stripe') {
-        $notes[] = 'refund the online payment';
+        $session = null;
+        try {
+            $session = stripe_get_session($order['stripe_session_id']);
+        } catch (Exception $e) {
+            error_log("Stripe lookup failed: " . $e->getMessage());
+        }
+        if ($session && stripe_refund_session($session)) {
+            $payment_status = 'Refunded';
+            $notes[] = 'online payment refunded';
+        } else {
+            $refund_failed = true;
+            $notes[] = 'automatic refund failed, refund it in the Stripe dashboard';
+        }
     }
 
-    $payment_status = $order['payment_status'];
     if ($new_status === 'Completed' && $order['payment_method'] !== 'Stripe' && $payment_status !== 'Paid') {
         $payment_status = 'Paid';
         $notes[] = $order['payment_method'] === 'COD' ? 'cash collected on delivery' : 'paid at store';
@@ -58,12 +71,18 @@ try {
 
     $conn->commit();
 
-    echo json_encode(["success" => true, "message" => "Order status updated successfully"]);
+    echo json_encode([
+        "success" => true,
+        "message" => $refund_failed
+            ? "Order cancelled, but the automatic refund failed. Please refund it in the Stripe dashboard"
+            : ($payment_status === 'Refunded' && $order['payment_status'] !== 'Refunded' ? "Order cancelled and the online payment refunded" : "Order status updated successfully"),
+        "payment_status" => $payment_status
+    ]);
 
 } catch (Exception $e) {
     if ($conn->inTransaction()) {
         $conn->rollBack();
     }
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

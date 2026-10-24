@@ -20,10 +20,20 @@ $dbname = "beaconmart_db";
 $username = "root";
 $password = "";  
 
+function safe_error($e) {
+    if ($e instanceof PDOException) {
+        error_log("Database error: " . $e->getMessage());
+        return "A database error occurred. Please try again";
+    }
+    return $e->getMessage();
+}
+
 try {
     $conn = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);
     $conn->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-} catch(PDOException $e) {
-    die(json_encode(["error" => "Connection failed: " . $e->getMessage()]));
+} catch (PDOException $e) {
+    error_log("Database connection failed: " . $e->getMessage());
+    http_response_code(500);
+    die(json_encode(["success" => false, "message" => "Cannot connect to the database. Please check that MySQL is running"]));
 }
 ?>

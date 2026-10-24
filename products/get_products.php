@@ -2,8 +2,7 @@
 require_once '../config/database.php';
 require_once '../config/shop.php';
 
-// get the branch_id from the query parameter, default to 1 if not provided
-$branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : 1; // 默认分店1
+$branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : 1;
 
 try {
     $stmt = $conn->prepare("
@@ -51,7 +50,7 @@ try {
 } catch(PDOException $e) {
     echo json_encode([
         "success" => false,
-        "message" => $e->getMessage()
+        "message" => safe_error($e)
     ]);
 }
 ?>

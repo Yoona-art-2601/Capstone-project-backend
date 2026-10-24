@@ -26,6 +26,6 @@ try {
 
     echo json_encode(["success" => true, "message" => "Product removed from store"]);
 } catch(PDOException $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

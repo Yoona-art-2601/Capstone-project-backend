@@ -91,6 +91,6 @@ try {
     if ($conn->inTransaction()) {
         $conn->rollBack();
     }
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

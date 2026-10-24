@@ -11,7 +11,8 @@ function nominatim_search($params) {
     $url = 'https://nominatim.openstreetmap.org/search?' . http_build_query($params + ['format' => 'json', 'limit' => 1, 'countrycodes' => 'my']);
     $ch = curl_init($url);
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-    curl_setopt($ch, CURLOPT_TIMEOUT, 12);
+    curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, 4);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 6);
     curl_setopt($ch, CURLOPT_USERAGENT, 'BeaconMart-StudentProject/1.0');
     $response = curl_exec($ch);
     curl_close($ch);
@@ -21,6 +22,8 @@ function nominatim_search($params) {
 }
 
 function geocode_address($conn, $street, $city, $state, $postcode) {
+    set_time_limit(60);
+    $deadline = microtime(true) + 25;
     $state_name = preg_replace('/^W\.P\.\s*/', '', $state);
     $attempts = [
         ['q' => "$street, $postcode $city, $state_name, Malaysia"],
@@ -28,7 +31,7 @@ function geocode_address($conn, $street, $city, $state, $postcode) {
         ['postalcode' => $postcode, 'state' => $state_name],
         ['q' => "$city, $state_name, Malaysia"]
     ];
-    foreach ($attempts as $params) {
+    foreach ($attempts as $i => $params) {
         $key = strtolower(json_encode($params));
         $stmt = $conn->prepare("SELECT latitude, longitude FROM geocode_cache WHERE query = :q");
         $stmt->execute([':q' => substr($key, 0, 255)]);
@@ -41,6 +44,7 @@ function geocode_address($conn, $street, $city, $state, $postcode) {
                  ->execute([':q' => substr($key, 0, 255), ':lat' => $found['lat'], ':lng' => $found['lng']]);
             return $found;
         }
+        if ($i === count($attempts) - 1 || microtime(true) + 7 > $deadline) break;
         usleep(1100000);
     }
     return null;

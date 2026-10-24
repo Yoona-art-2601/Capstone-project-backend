@@ -55,6 +55,6 @@ try {
     echo json_encode(["success" => true, "message" => "Shipment created and on its way to $branch", "dispatch_id" => $dispatch_id]);
 } catch (Exception $e) {
     if ($conn->inTransaction()) $conn->rollBack();
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

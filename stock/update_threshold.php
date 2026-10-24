@@ -39,6 +39,6 @@ try {
     check_stock_levels($conn, $data['branch_id'], [$data['product_id']]);
     echo json_encode(["success" => true, "message" => "Threshold updated successfully"]);
 } catch(PDOException $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

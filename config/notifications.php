@@ -34,7 +34,7 @@ function check_stock_levels($conn, $branch_id, $product_ids) {
                 notify($conn, 'Admin', null, $out ? 'out_of_stock' : 'low_stock',
                     ($out ? 'Out of stock: ' : 'Low stock: ') . $row['name'],
                     "{$row['branch_name']} has $stock left (alert level {$row['low_stock_threshold']}). Please restock.",
-                    'inventory', $ref);
+                    'inventory?branch=' . $branch_id, $ref);
             }
         }
 

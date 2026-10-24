@@ -101,7 +101,7 @@ try {
     // show error message
     echo json_encode([
         "success" => false,
-        "message" => $e->getMessage()
+        "message" => safe_error($e)
     ]);
 }
 

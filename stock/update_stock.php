@@ -19,6 +19,11 @@ if (!is_numeric($data['quantity_change']) || (int)$data['quantity_change'] === 0
     exit;
 }
 
+if (!in_array($data['change_type'], ['Restock', 'Stock Out', 'Adjustment'], true)) {
+    echo json_encode(["success" => false, "message" => "Change type must be Restock, Stock Out or Adjustment"]);
+    exit;
+}
+
 $qty = (int)$data['quantity_change'];
 
 try {
@@ -63,6 +68,6 @@ try {
     if ($conn->inTransaction()) {
         $conn->rollBack();
     }
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

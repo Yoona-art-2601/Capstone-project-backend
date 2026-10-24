@@ -45,7 +45,6 @@ try {
 
     echo json_encode([
         "success" => true,
-        "branch_id" => $branch_id ?? "all",
         "data" => [
             "today" => $today,
             "this_week" => $this_week,
@@ -55,7 +54,7 @@ try {
 } catch(PDOException $e) {
     echo json_encode([
         "success" => false,
-        "message" => $e->getMessage()
+        "message" => safe_error($e)
     ]);
 }
 ?>

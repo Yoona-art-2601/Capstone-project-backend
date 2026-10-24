@@ -33,10 +33,9 @@ try {
 
     echo json_encode([
         "success" => true,
-        "branch_id" => $branch_id ?? "all",
         "data" => $stmt->fetchAll(PDO::FETCH_ASSOC)
     ]);
 } catch(PDOException $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

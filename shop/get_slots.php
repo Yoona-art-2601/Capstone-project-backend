@@ -14,11 +14,9 @@ try {
     }
     echo json_encode([
         "success" => true,
-        "now" => kl_now()->format('Y-m-d H:i'),
-        "cutoff" => SAME_DAY_CUTOFF,
         "data" => available_slots($hours)
     ]);
 } catch (PDOException $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

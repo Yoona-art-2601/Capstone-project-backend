@@ -38,6 +38,6 @@ try {
     echo json_encode(["success" => false, "message" => $messages[$result] ?? "Could not check the payment. Please try again."]);
 
 } catch (Exception $e) {
-    echo json_encode(["success" => false, "message" => $e->getMessage()]);
+    echo json_encode(["success" => false, "message" => safe_error($e)]);
 }
 ?>

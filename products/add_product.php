@@ -13,6 +13,26 @@ if (!isset($data['name']) || !isset($data['price'])) {
     exit;
 }
 
+$name = trim((string)$data['name']);
+$initial_stock = $data['initial_stock'] ?? 0;
+$threshold = $data['low_stock_threshold'] ?? 10;
+
+if ($name === '') {
+    echo json_encode(["success" => false, "message" => "Product name cannot be empty"]);
+    exit;
+}
+if (!is_numeric($data['price']) || $data['price'] < 0) {
+    echo json_encode(["success" => false, "message" => "Price must be a non-negative number"]);
+    exit;
+}
+if (!is_numeric($initial_stock) || $initial_stock < 0 || !is_numeric($threshold) || $threshold < 0) {
+    echo json_encode(["success" => false, "message" => "Initial stock and threshold must be 0 or more"]);
+    exit;
+}
+$data['name'] = $name;
+$initial_stock = (int)$initial_stock;
+$threshold = (int)$threshold;
+
 try {
     $conn->beginTransaction();
 
@@ -30,9 +50,6 @@ try {
     $stmt = $conn->prepare("SELECT branch_id FROM branches");
     $stmt->execute();
     $branches = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-    $initial_stock = $data['initial_stock'] ?? 0;
-    $threshold = $data['low_stock_threshold'] ?? 10;
 
     foreach ($branches as $branch) {
         $stmt = $conn->prepare("INSERT INTO branch_stock (branch_id, product_id, stock, low_stock_threshold) 
@@ -59,7 +76,7 @@ try {
     $conn->rollBack();
     echo json_encode([
         "success" => false,
-        "message" => $e->getMessage()
+        "message" => safe_error($e)
     ]);
 }
 ?>
