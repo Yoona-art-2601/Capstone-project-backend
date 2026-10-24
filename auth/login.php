@@ -1,9 +1,10 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/../config/session.php';
 
 require_once '../config/database.php';
 require_once '../config/audit.php';
+require_once '../config/security.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -42,6 +43,17 @@ if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
 
 try {
 
+    $wait = attempt_lock_minutes($conn, 'login', $email);
+    if ($wait > 0) {
+        audit_log($conn, 'LOGIN_LOCKED', 'user', null, "Login blocked for $email after too many failed attempts",
+            ['user_id' => null, 'name' => $email, 'role' => null]);
+        http_response_code(429);
+        echo json_encode([
+            "success" => false,
+            "message" => locked_message($wait)
+        ]);
+        exit;
+    }
 
     $stmt = $conn->prepare(
         "SELECT user_id, name, email, password, role
@@ -57,6 +69,7 @@ try {
 
   
     if (!$user) {
+        record_failed_attempt($conn, 'login', $email);
         audit_log($conn, 'LOGIN_FAILED', 'user', null, "Unknown email: $email",
             ['user_id' => null, 'name' => $email, 'role' => null]);
         echo json_encode([
@@ -68,6 +81,7 @@ try {
 
   
     if (!password_verify($password, $user['password'])) {
+        record_failed_attempt($conn, 'login', $email);
         audit_log($conn, 'LOGIN_FAILED', 'user', $user['user_id'], "Wrong password for $email", $user);
         echo json_encode([
             "success" => false,
@@ -77,7 +91,9 @@ try {
     }
 
 
+    clear_failed_attempts($conn, 'login', $email);
     session_regenerate_id(true);
+    $_SESSION['last_seen'] = time();
     $_SESSION['user_id'] = $user['user_id'];
     $_SESSION['name'] = $user['name'];
     $_SESSION['email'] = $user['email'];

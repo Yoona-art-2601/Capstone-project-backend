@@ -1,6 +1,6 @@
 <?php
 
-session_start();
+require_once __DIR__ . '/../config/session.php';
 
 // check if user is logged in
 if (!isset($_SESSION['user_id'])) {

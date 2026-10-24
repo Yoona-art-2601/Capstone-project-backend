@@ -3,6 +3,7 @@
 require_once '../config/database.php';
 require_once '../config/audit.php';
 require_once '../config/admin.php';
+require_once '../config/security.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -39,8 +40,21 @@ if (
     exit;
 }
 
+$wait = attempt_lock_minutes($conn, 'admin_code');
+if ($wait > 0) {
+    http_response_code(429);
+    echo json_encode([
+        "success" => false,
+        "message" => locked_message($wait)
+    ]);
+    exit;
+}
+
 // check admin registration code
 if (!hash_equals(ADMIN_REGISTER_CODE, $admin_code)) {
+    record_failed_attempt($conn, 'admin_code', $email);
+    audit_log($conn, 'ADMIN_CODE_FAILED', 'user', null, "Wrong admin registration code for $email",
+        ['user_id' => null, 'name' => $email, 'role' => null]);
     echo json_encode([
         "success" => false,
         "message" => "Invalid admin registration code"
@@ -49,10 +63,10 @@ if (!hash_equals(ADMIN_REGISTER_CODE, $admin_code)) {
 }
 
 // check password length
-if (strlen($password) < 8) {
+if ($problem = password_problem($password)) {
     echo json_encode([
         "success" => false,
-        "message" => "Password must be at least 8 characters"
+        "message" => $problem
     ]);
     exit;
 }

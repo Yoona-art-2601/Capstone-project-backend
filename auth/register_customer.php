@@ -1,6 +1,7 @@
 <?php
 
 require_once '../config/database.php';
+require_once '../config/security.php';
 
 $data = json_decode(file_get_contents("php://input"), true);
 
@@ -31,10 +32,10 @@ if ($name === '' || $email === '' || $password === '') {
 }
 
 // Check password length
-if (strlen($password) < 8) {
+if ($problem = password_problem($password)) {
     echo json_encode([
         "success" => false,
-        "message" => "Password must be at least 8 characters"
+        "message" => $problem
     ]);
     exit;
 }
