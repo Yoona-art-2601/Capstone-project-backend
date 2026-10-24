@@ -90,6 +90,7 @@ try {
         }
         $conn->prepare("UPDATE orders SET stock_deducted = 1 WHERE order_id = :oid")->execute([':oid' => $order_id]);
         check_stock_levels($conn, $checkout['branch']['branch_id'], array_column($checkout['lines'], 'product_id'));
+        notify_admin_order($conn, $order_id, 'new');
     }
 
     if (!empty($data['save_details'])) {

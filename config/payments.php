@@ -86,6 +86,7 @@ function finalize_stripe_order($conn, $order_id, $session) {
                 $conn->prepare("UPDATE orders SET payment_status = 'Paid', status = 'Pending', stock_deducted = 1 WHERE order_id = :oid")
                      ->execute([':oid' => $order_id]);
                 record_status($conn, $order_id, 'Pending', 'Online payment received', 'Stripe');
+                notify_admin_order($conn, $order_id, 'new');
                 check_stock_levels($conn, $order['branch_id'], array_column($items, 'product_id'));
                 $result = 'paid';
             }

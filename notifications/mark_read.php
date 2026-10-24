@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../config/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -9,9 +10,7 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
-$is_admin = ($_SESSION['role'] ?? '') === 'Admin';
-$where = $is_admin ? "audience = 'Admin'" : "audience = 'Customer' AND user_id = :uid";
-$params = $is_admin ? [] : [':uid' => $_SESSION['user_id']];
+[$where, $params] = notification_scope($data['scope'] ?? 'customer');
 
 try {
     if (!empty($data['all'])) {

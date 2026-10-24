@@ -1,6 +1,7 @@
 <?php
 session_start();
 require_once '../config/database.php';
+require_once '../config/notifications.php';
 
 if (!isset($_SESSION['user_id'])) {
     http_response_code(401);
@@ -8,9 +9,7 @@ if (!isset($_SESSION['user_id'])) {
     exit;
 }
 
-$is_admin = ($_SESSION['role'] ?? '') === 'Admin';
-$where = $is_admin ? "audience = 'Admin'" : "audience = 'Customer' AND user_id = :uid";
-$params = $is_admin ? [] : [':uid' => $_SESSION['user_id']];
+[$where, $params] = notification_scope($_GET['scope'] ?? 'customer');
 
 try {
     $stmt = $conn->prepare("SELECT notification_id, type, title, message, link, is_read, created_at FROM notifications WHERE $where ORDER BY created_at DESC, notification_id DESC LIMIT 30");

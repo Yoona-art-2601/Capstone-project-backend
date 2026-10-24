@@ -53,6 +53,7 @@ try {
 
     $conn->prepare("UPDATE orders SET status = 'Cancelled' WHERE order_id = :oid")->execute([':oid' => $order_id]);
     record_status($conn, $order_id, 'Cancelled', 'Cancelled by customer', $_SESSION['name'] ?? 'Customer');
+    notify_admin_order($conn, $order_id, 'customer_cancelled');
     audit_log($conn, 'ORDER_CANCEL', 'order', $order_id, "Order #$order_id cancelled by customer");
 
     $conn->commit();
