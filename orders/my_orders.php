@@ -13,6 +13,8 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 try {
+    $per_page = 10;
+    $page = max(1, (int)($_GET['page'] ?? 1));
     expire_stale_payments($conn);
 
     $stmt = $conn->prepare("
@@ -23,10 +25,13 @@ try {
         FROM orders o
         LEFT JOIN branches b ON o.branch_id = b.branch_id
         WHERE o.user_id = :uid
-        ORDER BY o.order_date DESC
+        ORDER BY o.order_date DESC, o.order_id DESC
+        LIMIT " . ($per_page + 1) . " OFFSET " . (($page - 1) * $per_page) . "
     ");
     $stmt->execute([':uid' => $_SESSION['user_id']]);
     $orders = $stmt->fetchAll(PDO::FETCH_ASSOC);
+    $has_more = count($orders) > $per_page;
+    $orders = array_slice($orders, 0, $per_page);
 
     $stmt2 = $conn->prepare("
         SELECT oi.product_id, p.name, p.category, p.image_url, oi.quantity, oi.subtotal,
@@ -45,7 +50,9 @@ try {
 
     echo json_encode([
         "success" => true,
-        "data" => $orders
+        "data" => $orders,
+        "page" => $page,
+        "has_more" => $has_more
     ]);
 } catch(PDOException $e) {
     echo json_encode([
