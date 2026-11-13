@@ -175,7 +175,13 @@ Product photos in `uploads/products/` are not stored in git. `schema.sql` theref
 
 ## Tests
 
-```bash
-cd ../frontend
-npm test
-```
+- **API:** a Postman collection with 35 requests and 144 checks is in `postman/` (public store, access control, admin pages, validation). How to run it and the latest results are in [docs/TESTING.md](docs/TESTING.md).
+- **Frontend:** `cd ../frontend` then `npm test` (cart storage and phone validation).
+
+## Documentation
+
+| File | Contents |
+|---|---|
+| [docs/ERD.md](docs/ERD.md) | Database diagram (20 tables) and what each table is for; image in [docs/ERD.png](docs/ERD.png) |
+| [docs/TESTING.md](docs/TESTING.md) | Postman API tests, unit tests and manual test cases |
+| `database/schema.sql` | Full database structure with demo data |
