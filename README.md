@@ -20,6 +20,7 @@ Capstone project: an online store and back office for **Beacon Mart**, a healthy
 - Central warehouse: factory receipts and shipments to branches
 - Dashboard with charts, sales history (10 per page) and CSV / PDF reports
 - Admin alerts (new orders, cancellations, refunds, low stock) and a full audit trail
+- Staff attendance with a rotating QR code per branch: clock in / out, late and early-leave detection, corrections and CSV export
 
 **Security**
 - Password hashing, HttpOnly + SameSite session cookies, 2-hour idle logout
@@ -81,6 +82,7 @@ Start Apache and MySQL in the XAMPP Control Panel.
 16. `phase6_warehouse.sql`
 17. `fix_notification_links.sql`
 18. `security_login_attempts.sql`
+19. `attendance.sql`
 
 The database connection is in `config/database.php` (`root`, no password, the XAMPP default).
 
@@ -120,6 +122,15 @@ curl -X POST http://localhost/beaconmart-project/backend/auth/register_admin.php
 
 Use Stripe's test card `4242 4242 4242 4242`, any future expiry date and any CVC. No real money is charged in test mode.
 
+## Staff attendance
+
+1. In the admin panel open **Attendance → Open QR screen** for a branch and leave it on a tablet or computer at the counter. The QR code and its 6-character code change every 2 minutes.
+2. Staff scan the QR with their phone (or open `/attendance` and type the code) and press **Clock in** or **Clock out**.
+3. Late arrival and leaving early are calculated from the branch opening hours (10 minutes grace).
+4. Admins see a summary per staff member, filter late or missing clock-outs, correct a missing clock-out with a reason (audited) and download CSV.
+
+The QR link points to the address the QR screen was opened on. A phone can only open it if it can reach that address, so for a phone demo run the frontend on the computer's network address and add it to the allowed origins in `config/database.php`; otherwise type the code on `/attendance`.
+
 ## Product photos
 
 Product photos in `uploads/products/` are not stored in git. `schema.sql` therefore sets `image_url` to empty and the store shows category icons instead. An admin can upload photos in **Inventory → Details** (JPG, PNG, WebP or GIF, max 3 MB).
@@ -135,6 +146,7 @@ Product photos in `uploads/products/` are not stored in git. `schema.sql` theref
 | `payment/` | create checkout (Stripe / COD / pay at store), confirm, cancel, resume payment |
 | `shop/` | public settings, time slots, checkout quote |
 | `warehouse/` | warehouse stock, factory receipts, shipments to branches |
+| `attendance/` | branch QR code, clock in / out, status, records and corrections |
 | `stats/` | dashboard, sales summary, best sellers, sales history (CSV) |
 | `reviews/`, `notifications/`, `audit/`, `branches/` | reviews, notifications, audit trail, branch list |
 | `config/` | database, session, security, shop rules, checkout, payments, geocoding, notifications |

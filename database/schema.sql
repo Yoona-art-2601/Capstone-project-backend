@@ -14,6 +14,28 @@ USE `beaconmart_db`;
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `attendance` (
+  `attendance_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `branch_id` int(11) NOT NULL,
+  `work_date` date NOT NULL,
+  `clock_in` datetime NOT NULL,
+  `clock_out` datetime DEFAULT NULL,
+  `late_minutes` int(11) NOT NULL DEFAULT 0,
+  `early_leave_minutes` int(11) NOT NULL DEFAULT 0,
+  `clock_in_ip` varchar(45) DEFAULT NULL,
+  `clock_out_ip` varchar(45) DEFAULT NULL,
+  `note` varchar(255) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`attendance_id`),
+  UNIQUE KEY `one_shift_per_day` (`user_id`,`work_date`),
+  KEY `branch_date` (`branch_id`,`work_date`),
+  CONSTRAINT `attendance_branch_fk` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`),
+  CONSTRAINT `attendance_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `audit_logs` (
   `log_id` int(11) NOT NULL AUTO_INCREMENT,
   `user_id` int(11) DEFAULT NULL,
@@ -57,6 +79,7 @@ CREATE TABLE `branches` (
   `opening_hours` varchar(100) DEFAULT NULL,
   `latitude` decimal(10,7) DEFAULT NULL,
   `longitude` decimal(10,7) DEFAULT NULL,
+  `attendance_secret` varchar(64) DEFAULT NULL,
   PRIMARY KEY (`branch_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
@@ -94,7 +117,7 @@ CREATE TABLE `geocode_cache` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `login_attempts` (
   `attempt_id` int(11) NOT NULL AUTO_INCREMENT,
-  `kind` enum('login','admin_code','password') NOT NULL,
+  `kind` enum('login','admin_code','password','attendance_code') NOT NULL,
   `email` varchar(150) DEFAULT NULL,
   `ip_address` varchar(45) NOT NULL,
   `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
@@ -363,8 +386,8 @@ CREATE TABLE `warehouses` (
 /*!40111 SET @OLD_SQL_NOTES=@@SQL_NOTES, SQL_NOTES=0 */;
 
 /*!40000 ALTER TABLE `branches` DISABLE KEYS */;
-INSERT INTO `branches` (`branch_id`, `branch_name`, `address`, `phone`, `opening_hours`, `latitude`, `longitude`) VALUES (1,'Beacon Mart Klang','No. 8, Jalan Batu Unjur 1, Taman Bayu Perdana, 41200 Klang, Selangor','010-963 3128','Mon - Sat, 8:00am - 6:00pm',3.0169609,101.4358213);
-INSERT INTO `branches` (`branch_id`, `branch_name`, `address`, `phone`, `opening_hours`, `latitude`, `longitude`) VALUES (2,'Beacon Mart Shah Alam','38A, Jalan Anggerik Vanilla W31/W, Kota Kemuning, 40460 Shah Alam, Selangor','016-553 8128','Mon - Sat, 8:00am - 6:00pm',3.0048977,101.5359803);
+INSERT INTO `branches` (`branch_id`, `branch_name`, `address`, `phone`, `opening_hours`, `latitude`, `longitude`, `attendance_secret`) VALUES (1,'Beacon Mart Klang','No. 8, Jalan Batu Unjur 1, Taman Bayu Perdana, 41200 Klang, Selangor','010-963 3128','Mon - Sat, 8:00am - 6:00pm',3.0169609,101.4358213,NULL);
+INSERT INTO `branches` (`branch_id`, `branch_name`, `address`, `phone`, `opening_hours`, `latitude`, `longitude`, `attendance_secret`) VALUES (2,'Beacon Mart Shah Alam','38A, Jalan Anggerik Vanilla W31/W, Kota Kemuning, 40460 Shah Alam, Selangor','016-553 8128','Mon - Sat, 8:00am - 6:00pm',3.0048977,101.5359803,NULL);
 /*!40000 ALTER TABLE `branches` ENABLE KEYS */;
 
 /*!40000 ALTER TABLE `products` DISABLE KEYS */;
@@ -485,3 +508,4 @@ INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_a
 /*!40111 SET SQL_NOTES=@OLD_SQL_NOTES */;
 
 UPDATE `products` SET `image_url` = NULL;
+UPDATE `branches` SET `attendance_secret` = SHA2(CONCAT(UUID(), RAND(), `branch_id`), 256);
