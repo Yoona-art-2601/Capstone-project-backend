@@ -3,7 +3,7 @@ require_once __DIR__ . '/../config/session.php';
 require_once '../config/database.php';
 require_once '../config/attendance.php';
 
-require_employee();
+require_employee($conn);
 
 try {
     $today = kl_now()->format('Y-m-d');
@@ -27,7 +27,8 @@ try {
         "record" => $todayRecord,
         "recent" => $recent,
         "branches" => $branches,
-        "grace_minutes" => ATTENDANCE_GRACE_MINUTES
+        "grace_minutes" => ATTENDANCE_GRACE_MINUTES,
+        "my_branch_id" => staff_branch()
     ]);
 } catch (PDOException $e) {
     echo json_encode(["success" => false, "message" => safe_error($e)]);

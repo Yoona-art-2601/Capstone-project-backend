@@ -59,7 +59,11 @@ function order_product_ids($conn, $order_id) {
 
 function notification_scope($scope) {
     if ($scope === 'admin') {
-        if (($_SESSION['role'] ?? '') !== 'Admin') {
+        $role = $_SESSION['role'] ?? '';
+        if ($role === 'Staff' && !empty($_SESSION['branch_id'])) {
+            return ["audience = 'Admin' AND link LIKE :blink", [':blink' => '%?branch=' . (int)$_SESSION['branch_id']]];
+        }
+        if ($role !== 'Admin') {
             http_response_code(403);
             echo json_encode(["success" => false, "message" => "Access denied. Admin only"]);
             exit;

@@ -1,20 +1,12 @@
 <?php
 require_once __DIR__ . '/shop.php';
+require_once __DIR__ . '/roles.php';
 
 define('ATTENDANCE_CODE_SECONDS', 120);
 define('ATTENDANCE_GRACE_MINUTES', 10);
 
-function require_employee() {
-    if (!isset($_SESSION['user_id'])) {
-        http_response_code(401);
-        echo json_encode(["success" => false, "message" => "Please login first"]);
-        exit;
-    }
-    if (($_SESSION['role'] ?? '') === 'Customer') {
-        http_response_code(403);
-        echo json_encode(["success" => false, "message" => "Only staff accounts can use attendance"]);
-        exit;
-    }
+function require_employee($conn) {
+    return require_roles($conn, STAFF_ROLES, "Only staff accounts can use attendance");
 }
 
 function attendance_window($offset = 0) {

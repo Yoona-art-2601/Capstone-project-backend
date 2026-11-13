@@ -3,9 +3,10 @@
 require_once __DIR__ . '/../config/session.php';
 
 require_once '../config/database.php';
+require_once '../config/roles.php';
 
-// check if user is logged in
-if (!isset($_SESSION['user_id'])) {
+$user = refresh_session_user($conn);
+if (!$user) {
     echo json_encode([
         "success" => false,
         "message" => "Not logged in"
@@ -14,16 +15,18 @@ if (!isset($_SESSION['user_id'])) {
 }
 
 $stmt = $conn->prepare("SELECT phone, street, city, state, postcode FROM users WHERE user_id = :uid");
-$stmt->execute([':uid' => $_SESSION['user_id']]);
+$stmt->execute([':uid' => $user['user_id']]);
 $profile = $stmt->fetch(PDO::FETCH_ASSOC) ?: [];
 
 echo json_encode([
     "success" => true,
     "user" => [
-        "user_id" => $_SESSION['user_id'],
-        "name" => $_SESSION['name'],
-        "email" => $_SESSION['email'],
-        "role" => $_SESSION['role'],
+        "user_id" => (int)$user['user_id'],
+        "name" => $user['name'],
+        "email" => $user['email'],
+        "role" => $user['role'],
+        "branch_id" => $user['branch_id'] === null ? null : (int)$user['branch_id'],
+        "branch_name" => $user['branch_name'],
         "phone" => $profile['phone'] ?? null,
         "street" => $profile['street'] ?? null,
         "city" => $profile['city'] ?? null,

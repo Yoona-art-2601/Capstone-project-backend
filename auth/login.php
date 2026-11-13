@@ -56,7 +56,7 @@ try {
     }
 
     $stmt = $conn->prepare(
-        "SELECT user_id, name, email, password, role
+        "SELECT user_id, name, email, password, role, branch_id, is_active
          FROM users
          WHERE email = :email"
     );
@@ -91,6 +91,15 @@ try {
     }
 
 
+    if (!(int)$user['is_active']) {
+        audit_log($conn, 'LOGIN_FAILED', 'user', $user['user_id'], "Disabled account tried to log in: $email", $user);
+        echo json_encode([
+            "success" => false,
+            "message" => "This account has been disabled. Please contact the store"
+        ]);
+        exit;
+    }
+
     clear_failed_attempts($conn, 'login', $email);
     session_regenerate_id(true);
     $_SESSION['last_seen'] = time();
@@ -98,6 +107,7 @@ try {
     $_SESSION['name'] = $user['name'];
     $_SESSION['email'] = $user['email'];
     $_SESSION['role'] = $user['role'];
+    $_SESSION['branch_id'] = $user['branch_id'] === null ? null : (int)$user['branch_id'];
 
     audit_log($conn, 'LOGIN', 'user', $user['user_id'], "{$user['role']} logged in");
 
@@ -108,7 +118,8 @@ try {
             "user_id" => $user['user_id'],
             "name" => $user['name'],
             "email" => $user['email'],
-            "role" => $user['role']
+            "role" => $user['role'],
+            "branch_id" => $user['branch_id'] === null ? null : (int)$user['branch_id']
         ]
     ]);
 

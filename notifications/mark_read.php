@@ -2,8 +2,9 @@
 require_once __DIR__ . '/../config/session.php';
 require_once '../config/database.php';
 require_once '../config/notifications.php';
+require_once '../config/roles.php';
 
-if (!isset($_SESSION['user_id'])) {
+if (!refresh_session_user($conn)) {
     http_response_code(401);
     echo json_encode(["success" => false, "message" => "Please login first"]);
     exit;

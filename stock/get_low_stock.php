@@ -1,8 +1,8 @@
 <?php
 require_once '../config/database.php';
-require_once '../auth/check_admin.php';
+require_once '../auth/check_staff.php';
 
-$branch_id = isset($_GET['branch_id']) ? $_GET['branch_id'] : null;
+$branch_id = staff_branch() ?? (isset($_GET['branch_id']) ? $_GET['branch_id'] : null);
 $branch_filter = $branch_id ? "AND bs.branch_id = :branch_id" : "";
 
 try {

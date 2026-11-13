@@ -21,10 +21,16 @@ Capstone project: an online store and back office for **Beacon Mart**, a healthy
 - Dashboard with charts, sales history (10 per page) and CSV / PDF reports
 - Admin alerts (new orders, cancellations, refunds, low stock) and a full audit trail
 - Staff attendance with a rotating QR code per branch: clock in / out, late and early-leave detection, corrections and CSV export
+- User management: create Admin, Staff and Customer accounts, assign staff to a branch, disable or enable accounts, reset passwords
+
+**Staff** (one branch)
+- Process orders and record stock in / out for their own branch only
+- See admin alerts for their branch and clock in / out at their branch
 
 **Security**
 - Password hashing, HttpOnly + SameSite session cookies, 2-hour idle logout
-- Admin-only endpoints (`auth/check_admin.php`), admin registration code
+- Three roles: Admin, Staff (one branch) and Customer, checked against the database on every request (`config/roles.php`, `auth/check_admin.php`, `auth/check_staff.php`); disabled accounts are logged out at once
+- Admin registration code for the first admin
 - Failed login limit (5 per account / 20 per IP in 15 minutes), admin code limit, generic database error messages
 
 ## Requirements
@@ -83,6 +89,7 @@ Start Apache and MySQL in the XAMPP Control Panel.
 17. `fix_notification_links.sql`
 18. `security_login_attempts.sql`
 19. `attendance.sql`
+20. `staff_roles.sql`
 
 The database connection is in `config/database.php` (`root`, no password, the XAMPP default).
 
@@ -110,13 +117,15 @@ The store opens at http://localhost:3000 and the admin panel at http://localhost
 
 ### 5. Create the first admin
 
-Customers register on the store page. Admins are created through the API with the code from `config/admin.php` (Postman or curl):
+Customers register on the store page. The first admin is created through the API with the code from `config/admin.php` (Postman or curl):
 
 ```bash
 curl -X POST http://localhost/beaconmart-project/backend/auth/register_admin.php \
   -H "Content-Type: application/json" \
   -d '{"name":"Admin","email":"admin@example.com","password":"at-least-8-chars","admin_code":"YOUR_CODE"}'
 ```
+
+After that, log in at `/admin` and use the **Users** tab to create more admins and staff (choose the branch for staff) instead of the registration code.
 
 ### 6. Test payment
 
@@ -139,7 +148,8 @@ Product photos in `uploads/products/` are not stored in git. `schema.sql` theref
 
 | Folder | Contents |
 |---|---|
-| `auth/` | login, logout, me, register customer/admin, change password, admin check |
+| `auth/` | login, logout, me, register customer/admin, change password, admin and staff checks |
+| `users/` | admin user management: list, create / edit, enable / disable, reset password |
 | `products/` | list, add, update, soft delete, upload image |
 | `stock/` | stock in/out, thresholds, low stock, transfers between branches |
 | `orders/` | admin order list and status changes, customer orders and cancel |

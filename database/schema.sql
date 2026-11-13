@@ -309,10 +309,14 @@ CREATE TABLE `users` (
   `state` varchar(50) DEFAULT NULL,
   `postcode` varchar(10) DEFAULT NULL,
   `password` varchar(255) NOT NULL,
-  `role` enum('Admin','Customer') NOT NULL DEFAULT 'Customer',
+  `role` enum('Admin','Staff','Customer') NOT NULL DEFAULT 'Customer',
+  `branch_id` int(11) DEFAULT NULL,
+  `is_active` tinyint(1) NOT NULL DEFAULT 1,
   `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
   PRIMARY KEY (`user_id`),
-  UNIQUE KEY `email` (`email`)
+  UNIQUE KEY `email` (`email`),
+  KEY `users_branch_fk` (`branch_id`),
+  CONSTRAINT `users_branch_fk` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;

@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-require_once '../auth/check_admin.php';
+require_once '../auth/check_staff.php';
 require_once '../config/audit.php';
 require_once '../config/notifications.php';
 
@@ -23,6 +23,8 @@ if (!in_array($data['change_type'], ['Restock', 'Stock Out', 'Adjustment'], true
     echo json_encode(["success" => false, "message" => "Change type must be Restock, Stock Out or Adjustment"]);
     exit;
 }
+
+deny_other_branch($data['branch_id']);
 
 $qty = (int)$data['quantity_change'];
 

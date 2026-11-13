@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-require_once '../auth/check_admin.php';
+require_once '../auth/check_staff.php';
 require_once '../config/audit.php';
 require_once '../config/payments.php';
 
@@ -19,6 +19,7 @@ try {
     $order = $stmt->fetch(PDO::FETCH_ASSOC);
 
     if (!$order) throw new Exception("Order not found");
+    if (staff_branch() !== null && (int)$order['branch_id'] !== staff_branch()) throw new Exception("You can only update orders of your own branch");
     if ($order['status'] === 'Awaiting Payment') throw new Exception("This order is still awaiting online payment");
     if (in_array($order['status'], ORDER_FINAL_STATUSES, true)) throw new Exception("{$order['status']} orders cannot be changed");
 

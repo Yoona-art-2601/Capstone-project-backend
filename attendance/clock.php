@@ -5,7 +5,7 @@ require_once '../config/audit.php';
 require_once '../config/security.php';
 require_once '../config/attendance.php';
 
-require_employee();
+require_employee($conn);
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $branch_id = (int)($data['branch_id'] ?? 0);
@@ -31,6 +31,10 @@ try {
     $branch = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$branch) {
         echo json_encode(["success" => false, "message" => "Please choose your branch"]);
+        exit;
+    }
+    if (staff_branch() !== null && staff_branch() !== $branch_id) {
+        echo json_encode(["success" => false, "message" => "You can only clock in at your own branch"]);
         exit;
     }
     if (!verify_attendance_code($branch['attendance_secret'], $branch_id, $code)) {
