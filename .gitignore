@@ -4,3 +4,7 @@ config/stripe.php
 config/admin.php
 uploads/products/*
 !uploads/products/.gitkeep
+
+# Simulated emails (password reset links) - never commit
+mail_outbox/*
+!mail_outbox/.htaccess

@@ -1,6 +1,6 @@
 <?php
 require_once '../config/database.php';
-require_once '../auth/check_admin.php';
+require_once '../auth/check_staff.php';
 require_once '../config/audit.php';
 require_once '../config/notifications.php';
 require_once '../config/warehouse.php';
@@ -8,6 +8,12 @@ require_once '../config/warehouse.php';
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $dispatch_id = (int)($data['dispatch_id'] ?? 0);
 $action = $data['action'] ?? '';
+
+if ($action === 'cancel' && staff_branch() !== null) {
+    http_response_code(403);
+    echo json_encode(["success" => false, "message" => "Only an admin can cancel a shipment"]);
+    exit;
+}
 
 if (!in_array($action, ['receive', 'cancel'], true)) {
     echo json_encode(["success" => false, "message" => "Action must be receive or cancel"]);
@@ -26,6 +32,7 @@ try {
     $stmt->execute([':did' => $dispatch_id]);
     $d = $stmt->fetch(PDO::FETCH_ASSOC);
     if (!$d) throw new Exception("Shipment not found");
+    if (staff_branch() !== null && (int)$d['branch_id'] !== staff_branch()) throw new Exception("You can only receive shipments for your own branch");
     if ($d['status'] !== 'In Transit') throw new Exception("This shipment is already {$d['status']}");
 
     $now = parse_local_datetime('');

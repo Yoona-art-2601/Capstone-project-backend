@@ -4,7 +4,8 @@ define('ATTEMPT_LIMITS', [
     'login' => ['email' => 5, 'ip' => 20],
     'admin_code' => ['email' => null, 'ip' => 5],
     'password' => ['email' => 5, 'ip' => 20],
-    'attendance_code' => ['email' => 5, 'ip' => 20]
+    'attendance_code' => ['email' => 5, 'ip' => 20],
+    'reset' => ['email' => 3, 'ip' => 10]
 ]);
 define('PASSWORD_MIN_LENGTH', 8);
 define('PASSWORD_MAX_LENGTH', 72);

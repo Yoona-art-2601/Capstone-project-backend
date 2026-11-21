@@ -81,6 +81,7 @@
                   "const body = pm.response.json();",
                   "pm.test('success is true', () => pm.expect(body.success, body.message).to.eql(true));",
                   "pm.test('at least one branch with opening hours', () => { pm.expect(body.data.length).to.be.above(0); pm.expect(body.data[0]).to.have.property('opening_hours'); });",
+                  "pm.test('branches have a map location for delivery', () => pm.expect(body.data[0]).to.include.keys('latitude', 'longitude'));",
                   "pm.collectionVariables.set('branchId', body.data[0].branch_id);"
                 ]
               }
@@ -336,6 +337,64 @@
                   "const body = pm.response.json();",
                   "pm.test('success is false', () => pm.expect(body.success).to.eql(false));",
                   "pm.test('message mentions \"Invalid email format\"', () => pm.expect(body.message).to.include(\"Invalid email format\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot password does not reveal accounts",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/forgot_password.php",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{$randomEmail}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success is true', () => pm.expect(body.success, body.message).to.eql(true));",
+                  "pm.test('same answer for any email', () => pm.expect(body.message).to.include('If an account exists'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset link rejects a bad token",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/reset_password.php?token=not-a-real-token"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success is false', () => pm.expect(body.success).to.eql(false));",
+                  "pm.test('message mentions \"invalid, already used or expired\"', () => pm.expect(body.message).to.include(\"invalid, already used or expired\"));"
                 ]
               }
             }
@@ -922,6 +981,42 @@
                   "const body = pm.response.json();",
                   "pm.test('success is false', () => pm.expect(body.success).to.eql(false));",
                   "pm.test('message mentions \"branch\"', () => pm.expect(body.message).to.include(\"branch\"));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Branch form rejects closing before opening",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/branches/update_branch.php",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch_id\": \"{{branchId}}\",\n  \"branch_name\": \"Test\",\n  \"address\": \"Test address\",\n  \"phone\": \"\",\n  \"open_from\": \"Mon\",\n  \"open_to\": \"Sat\",\n  \"open_time\": \"18:00\",\n  \"close_time\": \"08:00\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.test('success is false', () => pm.expect(body.success).to.eql(false));",
+                  "pm.test('message mentions \"Closing time must be after opening time\"', () => pm.expect(body.message).to.include(\"Closing time must be after opening time\"));"
                 ]
               }
             }

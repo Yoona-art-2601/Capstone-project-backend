@@ -117,7 +117,7 @@ CREATE TABLE `geocode_cache` (
 /*!40101 SET character_set_client = utf8 */;
 CREATE TABLE `login_attempts` (
   `attempt_id` int(11) NOT NULL AUTO_INCREMENT,
-  `kind` enum('login','admin_code','password','attendance_code') NOT NULL,
+  `kind` enum('login','admin_code','password','attendance_code','reset') NOT NULL,
   `email` varchar(150) DEFAULT NULL,
   `ip_address` varchar(45) NOT NULL,
   `attempted_at` datetime NOT NULL DEFAULT current_timestamp(),
@@ -206,6 +206,22 @@ CREATE TABLE `orders` (
   KEY `user_id` (`user_id`),
   CONSTRAINT `orders_ibfk_1` FOREIGN KEY (`branch_id`) REFERENCES `branches` (`branch_id`),
   CONSTRAINT `orders_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+/*!40101 SET character_set_client = @saved_cs_client */;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8 */;
+CREATE TABLE `password_resets` (
+  `reset_id` int(11) NOT NULL AUTO_INCREMENT,
+  `user_id` int(11) NOT NULL,
+  `token_hash` char(64) NOT NULL,
+  `expires_at` datetime NOT NULL,
+  `used_at` datetime DEFAULT NULL,
+  `requested_ip` varchar(45) DEFAULT NULL,
+  `created_at` timestamp NOT NULL DEFAULT current_timestamp(),
+  PRIMARY KEY (`reset_id`),
+  UNIQUE KEY `token_hash` (`token_hash`),
+  KEY `user_id` (`user_id`),
+  CONSTRAINT `password_resets_user_fk` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -479,7 +495,7 @@ INSERT INTO `warehouses` (`warehouse_id`, `name`, `address`, `created_at`) VALUE
 /*!40000 ALTER TABLE `warehouse_stock` DISABLE KEYS */;
 INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,1,0,'2026-10-20 09:19:20');
 INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,3,0,'2026-10-20 09:19:20');
-INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,7,0,'2026-10-20 09:19:20');
+INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,7,0,'2026-11-21 08:59:05');
 INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,8,0,'2026-10-20 09:19:20');
 INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,9,0,'2026-10-20 09:19:20');
 INSERT INTO `warehouse_stock` (`warehouse_id`, `product_id`, `stock`, `updated_at`) VALUES (1,10,0,'2026-10-20 09:19:20');

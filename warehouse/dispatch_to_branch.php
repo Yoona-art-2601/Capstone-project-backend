@@ -3,6 +3,7 @@ require_once '../config/database.php';
 require_once '../auth/check_admin.php';
 require_once '../config/audit.php';
 require_once '../config/warehouse.php';
+require_once '../config/notifications.php';
 
 $data = json_decode(file_get_contents("php://input"), true) ?? [];
 $product_id = (int)($data['product_id'] ?? 0);
@@ -50,6 +51,9 @@ try {
     $dispatch_id = $conn->lastInsertId();
     audit_log($conn, 'WAREHOUSE_DISPATCH', 'product', $product_id,
         "Shipment #$dispatch_id: $quantity x $name from the central warehouse to $branch, expected $expected");
+    notify($conn, 'Admin', null, 'shipment', "Shipment #$dispatch_id on the way to $branch",
+        "$quantity x $name, expected " . date('j M, g:i a', strtotime($expected)) . ". Mark it received under Incoming stock when it arrives.",
+        'incoming?branch=' . $branch_id, "dispatch:$dispatch_id");
     $conn->commit();
 
     echo json_encode(["success" => true, "message" => "Shipment created and on its way to $branch", "dispatch_id" => $dispatch_id]);

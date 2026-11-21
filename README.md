@@ -22,9 +22,11 @@ Capstone project: an online store and back office for **Beacon Mart**, a healthy
 - Admin alerts (new orders, cancellations, refunds, low stock) and a full audit trail
 - Staff attendance with a rotating QR code per branch: clock in / out, late and early-leave detection, corrections and CSV export
 - User management: create Admin, Staff and Customer accounts, assign staff to a branch, disable or enable accounts, reset passwords
+- Branch details: name, address, phone, opening days and hours (these drive time slots, closed days and late clock-ins), map location looked up from the address, reset of the attendance QR secret
 
 **Staff** (one branch)
 - Process orders and record stock in / out for their own branch only
+- Confirm warehouse shipments for their branch under Incoming stock (cannot cancel them)
 - See admin alerts for their branch and clock in / out at their branch
 
 **Security**
@@ -32,6 +34,7 @@ Capstone project: an online store and back office for **Beacon Mart**, a healthy
 - Three roles: Admin, Staff (one branch) and Customer, checked against the database on every request (`config/roles.php`, `auth/check_admin.php`, `auth/check_staff.php`); disabled accounts are logged out at once
 - Admin registration code for the first admin
 - Failed login limit (5 per account / 20 per IP in 15 minutes), admin code limit, generic database error messages
+- Forgot password: one-time reset link that expires in 30 minutes, same answer whether or not the email exists, 3 requests per email in 15 minutes
 
 ## Requirements
 
@@ -90,6 +93,7 @@ Start Apache and MySQL in the XAMPP Control Panel.
 18. `security_login_attempts.sql`
 19. `attendance.sql`
 20. `staff_roles.sql`
+21. `password_resets.sql`
 
 The database connection is in `config/database.php` (`root`, no password, the XAMPP default).
 
@@ -140,6 +144,10 @@ Use Stripe's test card `4242 4242 4242 4242`, any future expiry date and any CVC
 
 The QR link points to the address the QR screen was opened on. A phone can only open it if it can reach that address, so for a phone demo run the frontend on the computer's network address and add it to the allowed origins in `config/database.php`; otherwise type the code on `/attendance`.
 
+## Password reset emails
+
+XAMPP cannot send real email, so `config/mail.php` saves every email as an HTML file in `mail_outbox/` instead. After **Forgot password?** on the store or the staff login, open the newest file in that folder and click the link. The folder is blocked from the web by `.htaccess` and is not stored in git. To send real email later, replace the body of `send_mail()` with an SMTP library such as PHPMailer.
+
 ## Product photos
 
 Product photos in `uploads/products/` are not stored in git. `schema.sql` therefore sets `image_url` to empty and the store shows category icons instead. An admin can upload photos in **Inventory → Details** (JPG, PNG, WebP or GIF, max 3 MB).
@@ -148,17 +156,18 @@ Product photos in `uploads/products/` are not stored in git. `schema.sql` theref
 
 | Folder | Contents |
 |---|---|
-| `auth/` | login, logout, me, register customer/admin, change password, admin and staff checks |
+| `auth/` | login, logout, me, register customer/admin, change password, forgot and reset password, admin and staff checks |
 | `users/` | admin user management: list, create / edit, enable / disable, reset password |
+| `branches/` | branch list (public) and branch editing (admin) |
 | `products/` | list, add, update, soft delete, upload image |
 | `stock/` | stock in/out, thresholds, low stock, transfers between branches |
 | `orders/` | admin order list and status changes, customer orders and cancel |
 | `payment/` | create checkout (Stripe / COD / pay at store), confirm, cancel, resume payment |
 | `shop/` | public settings, time slots, checkout quote |
-| `warehouse/` | warehouse stock, factory receipts, shipments to branches |
+| `warehouse/` | warehouse stock, factory receipts, shipments to branches, incoming stock for a branch |
 | `attendance/` | branch QR code, clock in / out, status, records and corrections |
 | `stats/` | dashboard, sales summary, best sellers, sales history (CSV) |
-| `reviews/`, `notifications/`, `audit/`, `branches/` | reviews, notifications, audit trail, branch list |
+| `reviews/`, `notifications/`, `audit/` | reviews, notifications, audit trail |
 | `config/` | database, session, security, shop rules, checkout, payments, geocoding, notifications |
 | `database/` | `schema.sql` and incremental migrations |
 | `uploads/` | product photos (scripts blocked by `.htaccess`) |
@@ -175,7 +184,7 @@ Product photos in `uploads/products/` are not stored in git. `schema.sql` theref
 
 ## Tests
 
-- **API:** a Postman collection with 35 requests and 144 checks is in `postman/` (public store, access control, admin pages, validation). How to run it and the latest results are in [docs/TESTING.md](docs/TESTING.md).
+- **API:** a Postman collection with 38 requests and 157 checks is in `postman/` (public store, access control, admin pages, validation). How to run it and the latest results are in [docs/TESTING.md](docs/TESTING.md).
 - **Frontend:** `cd ../frontend` then `npm test` (cart storage and phone validation).
 
 ## Documentation
