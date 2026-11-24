@@ -78,7 +78,7 @@ try {
         fputcsv($out, ['Period', "$date_from to $date_to"]);
         fputcsv($out, ['Paid orders', $totals['orders'], 'Units sold', $totals['units'], 'Revenue (RM, before SST and delivery)', number_format($total_revenue, 2, '.', '')]);
         fputcsv($out, []);
-        fputcsv($out, ['Rank', 'Product', 'Category', 'Units sold', 'Orders', 'Revenue (RM)', 'Share of revenue (%)', 'First sale', 'Last sale']);
+        fputcsv($out, ['Rank', 'Product', 'Category', 'Units sold', 'Orders', 'Revenue (RM)', '% of sales', 'First sale', 'Last sale']);
         foreach ($rows as $i => $r) {
             fputcsv($out, [$i + 1, $r['name'], $r['category'], $r['units'], $r['orders'], number_format($r['revenue'], 2, '.', ''), $r['share'], $r['first_sale'], $r['last_sale']]);
         }
